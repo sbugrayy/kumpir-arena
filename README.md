@@ -3,7 +3,7 @@
 Brotato'dan esinlenen, saf **HTML + CSS + JavaScript** ile yazılmış bir arena hayatta kalma (roguelite) oyunu.
 Hiçbir kütüphane veya kurulum gerektirmez.
 
-Bir patates seç, 6 silaha kadar kuşan ve 20 dalga boyunca uzaylı istilasından sağ çık. 20. dalgada Kraliçe Zorg seni bekliyor.
+Bir patates seç, 6 silaha kadar kuşan, rotanı çiz ve 20 dalga boyunca uzaylı istilasından sağ çık. 20. dalgada üç patrondan biri seni bekliyor. İstersen bir arkadaşınla aynı klavyede oyna.
 
 ## Nasıl çalıştırılır?
 
@@ -20,47 +20,88 @@ Bir patates seç, 6 silaha kadar kuşan ve 20 dalga boyunca uzaylı istilasında
 
 Ardından tarayıcıda **http://localhost:8080** adresini aç. Port doluysa: `node server.js --port 8081`.
 
+Sunucu üzerinden açıldığında oyun bir **PWA**'dır: tarayıcının "Uygulamayı yükle" seçeneğiyle ana ekrana eklenebilir ve bir kez açıldıktan sonra **internetsiz** de oynanır.
+
+### GitHub Pages ile yayınlama
+
+Oyun tamamen statik dosyalardan oluşur, derleme gerekmez:
+
+1. Depoda **Settings → Pages** sayfasını aç.
+2. **Source** olarak **Deploy from a branch**, dal olarak `main` ve klasör olarak `/ (root)` seç, kaydet.
+3. Birkaç dakika sonra oyun `https://<kullanıcı-adı>.github.io/<depo-adı>/` adresinde açılır.
+
+`.nojekyll` dosyası, GitHub'ın dosyaları olduğu gibi sunmasını sağlar. Service worker göreli yollar kullandığı için alt klasörde de çalışır.
+
 ## Kontroller
 
-| Tuş | İşlev |
-| --- | --- |
-| `W` `A` `S` `D` veya ok tuşları | Hareket |
-| `Esc` veya `P` | Duraklat / devam et |
-| `1` `2` `3` `4` | Seviye atlayınca geliştirme seç |
-| Dokunmatik ekran | Parmağını ekranda sürükle (sanal joystick) |
+| Tuş | Tek kişi | İki kişi (aynı klavye) |
+| --- | --- | --- |
+| Hareket | `W` `A` `S` `D` veya ok tuşları | 1. oyuncu `WASD`, 2. oyuncu ok tuşları |
+| Atılma | `Boşluk` veya `Shift` | 1. `Boşluk` / `Sol Shift`, 2. `Enter` |
+| Yetenek | `E` veya `Q` | 1. `E` / `Q`, 2. `Sağ Shift` |
+| Duraklat | `Esc` veya `P` | aynı |
+| Geliştirme seç | `1` `2` `3` `4` | aynı |
 
-Silahlar menzile giren en yakın düşmana **kendiliğinden** saldırır; sen sadece hareket edersin.
+- **Gamepad:** sol çubuk/yön tuşları hareket, `A` atılma, `X`/`Y`/`B` yetenek, `Start` duraklat. Menülerde yön tuşlarıyla gezin, `A` seç, `B` geri. İki gamepad takılırsa iki kişilik oyunda her oyuncu kendi kolunu kullanır.
+- **Dokunmatik ekran:** parmağını sürükle (sanal joystick), sağ alttaki düğmelerle atıl ve yeteneğini kullan.
+
+Silahlar menzile giren düşmana **kendiliğinden** saldırır. Silahına tıklayıp (dükkanda ya da duraklatınca) hedef önceliğini **en yakın / en güçlü / en az canlı** olarak seçebilirsin.
 
 ## Oyunun içeriği
 
-- **6 karakter:** Çok Yönlü, Kavgacı, Avcı, Büyücü, Mühendis, Şanslı
-- **12 silah**, 4 kademe (Sıradan, Nadir, Destansı, Efsanevi). Aynı silahtan aynı kademede iki tane birleştirilip bir üst kademeye çıkarılabilir.
-- **8 silah sınıfı ve set bonusları** (Ateşli, Kesici, Hassas, Ağır, Alet, Elementel, Patlayıcı, Silahsız)
-- **43 eşya**, 16 istatistik (maks. can, can yenilenmesi, can çalma, hasar, saldırı hızı, kritik, menzil, zırh, kaçınma, hız, şans, hasat, mühendislik...)
-- **Düşmanlar:** Bebek Uzaylı, Fırlayan, Tükürükçü, Boğa (hücum eder), Kabadayı, ganimet veren Ağaçlar, 11. ve 16. dalgada Elit Muhafız, 20. dalgada üç evreli patron Kraliçe Zorg
-- **Dükkan:** satın al, kilitle, yenile, sat, birleştir
-- **Seviye atlama:** her seviyede 4 geliştirme arasından seçim
-- **Sandıklar ve meyveler**, dalga sonunda yerde kalan malzemelerin çantaya girip sonraki dalgada iki katına çıkması
-- **4 tehlike seviyesi**
-- Otomatik kayıt: dalga aralarında kaydedilir, menüden **Devam Et** ile sürdürülür
-- Sesler WebAudio ile üretilir (ses dosyası yok); ayarlardan ses, ekran sarsıntısı ve hasar sayıları açılıp kapatılabilir
+- **9 karakter**, her birinin kendine özgü **aktif yeteneği** var: Çok Yönlü (Patates Yağmuru), Kavgacı (Yer Sarsıntısı), Avcı (Avcı Odağı), Büyücü (Ateş Halkası), Mühendis (Acil Taret), Şanslı (Şans Zarı) ve başarımlarla açılan kural değiştiren karakterler:
+  - **Haşlanmış:** silah taşıyamaz, dokunduğu düşmanı haşlar (Buhar Patlaması)
+  - **Kasap:** kesici silahlar %50 güçlü, diğerleri %25 zayıf (Satır Fırtınası)
+  - **Çürük:** etrafına zehir saçar ama her dalga 1 maks. can kaybeder (Zehir Bulutu)
+- **Atılma:** kısa bir hamle; atılırken hasar almazsın.
+- **12 silah + 6 evrim silahı**, 4 kademe. Aynı silahtan iki tane birleşir. Belirli iki silah ve bir katalizör eşya bir araya gelince evrimleşir:
+  Tabanca + Makineli Tüfek + Mermi Kutusu = Gatling · Ateş Asası + Pompalı + Kibrit = Alev Püskürtücü · Yumruk + Çekiç + Bileme Taşı = Deprem Eldiveni · Arbalet + Mızrak + Dürbün = Balista · Roketatar + İngiliz Anahtarı + Tornavida = Güdümlü Füze · Bıçak + Kılıç + Vampir Dişi = Vampir Kılıcı
+- **55 eşya**, bunların 12'si kuralı değiştirir (Bomba Yeleği, Zincir Yıldırım, Kalkan Jeneratörü, Gölge Pelerini, Diken Zırhı, Kumbara, Sihirli Fasulye...)
+- **8 silah sınıfı ve set bonusları**, 16 istatistik
+- **Düşmanlar:** Bebek Uzaylı, Fırlayan, Tükürükçü, Boğa, Kabadayı, malzemeni çalıp kaçan **Hırsız**, ölünce bölünen **Pelte**, diğerlerini iyileştiren **Şifacı**, önden gelen mermiyi durduran **Kalkanlı**, ganimet veren Ağaçlar
+- **Elitler** rastgele özellik taşır: Hızlı, Patlayan, Çağıran, Zırhlı, Yenilenen
+- **3 patron** (20. dalgada biri rastgele): Kraliçe Zorg, Gözcü Kroz (dönen lazerler), Yumurta Ana (yumurta bırakır)
+- **3 arena** (7 dalgada bir değişir): Tarla (çamur yavaşlatır), Mutfak (ocak gözleri ve yuvarlanan oklavalar), Pazar Yeri (tezgahlar engel ve siper)
+- **Rota haritası:** her dalgadan sonra sıradaki durağı seç: dalga, elit dalga, olay ya da dinlenme. Düğümler **dalga değiştiricileri** taşıyabilir: Sis, Dev Uzaylılar, Kalabalık, Telaş, Altın Yağmuru, Meyve Bahçesi, Sakin Gece
+- **9 olay:** Gezgin Tohumcu, Şüpheli Kutu, Yaşlı Kumpirci, Kan Bağışı, Silah Ustası, Kaçak Uzaylı, Kumarbaz Kertenkele, Yonca Tapınağı, Dilek Kuyusu
+- **Tohum ve faiz:** bahçene tohum ek, birkaç dalga sonra bedava sandık hasat et. Elinde tuttuğun her 10 malzeme dalga sonunda 1 faiz getirir (en fazla 10).
+- **Kumpir:** düşmanlardan kaşar, sosis, turşu, mısır gibi malzemeler düşer. 4 yuvaya koyduğun malzemeler bonus verir; doğru karışımlar **6 tarif** açar (Klasik, Acılı, Akdeniz, Bahçe, Kahvaltılık, Ortaköy Usulü). Gece **Ortaköy tezgahında** müşterilerin siparişlerini hazırlayıp malzeme kazanabilirsin.
+- **Pişme evreleri:** seviye atladıkça patatesin çiğden haşlanmışa, fırına ve kumpire dönüşür. Canın azalınca yüzü telaşlanır; ölünce "Püre oldun!"
+- **16 başarım**, 3'ü yeni karakter açar
+- **Günlük meydan okuma:** herkes o gün aynı karakter, silah, harita, dükkan ve patronla oynar; puanını kopyalayıp paylaşabilirsin
+- **Sonsuz mod:** zaferden sonra devam et; her 5 dalgada elit, her 10 dalgada patron
+- **4 tehlike seviyesi** ve **kolay mod** (alınan hasar yarıya iner)
+- **Erişilebilirlik:** renk körü paleti (kademeler ayrıca şekille de gösterilir), oyun hızı (%75 / %100 / %125), ekran sarsıntısı ve vuruş donması kapatılabilir
+- **Müzik:** menü, dükkan, dalga ve patron için ayrı, kodla üretilen parçalar; büyük vuruşlarda kısa vuruş donması
+- Otomatik kayıt: dalga aralarında (dükkan, harita, olay, dinlenme dahil) kaydedilir, menüden **Devam Et** ile sürdürülür. Eski sürümün kayıtları otomatik yükseltilir.
 
 ## Proje yapısı
 
 ```
-index.html          Sayfa iskeleti ve ekranlar
-css/style.css       Arayüz stilleri
-js/util.js          Yardımcı fonksiyonlar
-js/data.js          Silahlar, eşyalar, karakterler, düşmanlar, dalga ayarları
-js/audio.js         Üretilen ses efektleri
-js/input.js         Klavye ve dokunmatik giriş
-js/game.js          Oyun motoru (dalga simülasyonu, dükkan, seviye, kayıt)
-js/render.js        Canvas çizimleri
-js/ui.js            Menüler, dükkan ve gösterge paneli
-js/main.js          Başlatma ve ana döngü
-server.js           Bağımlılıksız yerel sunucu
+index.html             Sayfa iskeleti ve ekranlar
+manifest.webmanifest   PWA tanımı
+sw.js                  Çevrimdışı önbellek (service worker)
+icons/                 Uygulama simgeleri (tools/make-icons.js ile üretilir)
+css/style.css          Arayüz stilleri
+js/util.js             Yardımcılar ve tohumlu rastgele sayı üreteci
+js/data.js             Silahlar, eşyalar, karakterler, düşmanlar, olaylar, tarifler, başarımlar
+js/audio.js            Üretilen ses efektleri ve müzik
+js/input.js            Klavye (iki oyuncu), dokunmatik ve gamepad
+js/game.js             Oyun motoru: koşu, kayıt, oyuncular, silahlar, düşmanlar, yetenekler
+js/arena.js            Arenalar ve tehlikeleri
+js/progress.js         Dalga arası sistemler: dükkan, evrim, harita, olaylar, tohum, faiz, kumpir, tezgah
+js/meta.js             Kalıcı profil: başarımlar, kilitler, günlük meydan okuma
+js/art.js              Patates, düşman, silah ve ikon çizimleri
+js/render.js           Canvas çizimleri (arena, kamera, efektler)
+js/ui.js               Menüler, HUD, ayarlar, başarımlar, günlük ekranı
+js/ui-run.js           Seviye, sandık, tezgah, dükkan, harita, olay ve dinlenme ekranları
+js/main.js             Başlatma ve ana döngü
+server.js              Bağımlılıksız yerel sunucu
 tools/build-single.js  Oyunu tek HTML dosyasına paketler (npm run build)
-tests/e2e.js        Playwright ile uçtan uca testler (npm test)
+tools/make-icons.js    Simgeleri oyunun çizim koduyla üretir
+tests/e2e.js           Playwright ile uçtan uca testler (npm test)
+tests/bot.js           Testlerde ve denge simülasyonlarında oynayan bot
+tests/balance.js       Denge simülasyonu (npm run balance)
 ```
 
 ## Testler
@@ -70,8 +111,10 @@ npm i -D playwright
 npm test
 ```
 
-Testler arayüzün tüm akışını (menü, karakter/silah seçimi, duraklatma, seviye atlama, sandık, dükkanda satın alma/kilitleme/yenileme/satma/birleştirme, kayıttan devam, ölüm, telefon görünümü ve dokunmatik joystick) tıklayarak dener; ayrıca 20 dalgalık tam koşuları simüle eder.
+Testler arayüzün tüm akışını tıklayarak dener (menü, kilitli karakterler, atılma ve yetenekler, hedef önceliği, seviye/sandık/tezgah/dükkan sekmeleri, rota haritası, olay ve dinlenme, kayıttan devam, eski kayıt yükseltmesi, co-op, gamepad, ayarlar, telefon görünümü), her yeni mekaniği ayrı ayrı doğrular (eşya etkileri, evrimler, yeni düşmanlar, elit özellikleri, üç patron, arenalar, değiştiriciler, olaylar, tarifler, tohumlu rastgelelik, PWA çevrimdışı açılış, tek dosya paket) ve bot ile 20 dalgalık tam koşular oynar.
+
+`npm run balance` farklı karakter ve tehlike seviyeleriyle botun ne kadar ilerlediğini gösterir.
 
 ---
 
-Bu proje Brotato'nun (Blobfish) resmi bir ürünü değildir; oyun mekaniklerinden esinlenen, hayran yapımı bir klondur. Tüm çizimler kodla üretilmiştir.
+Bu proje Brotato'nun (Blobfish) resmi bir ürünü değildir; oyun mekaniklerinden esinlenen, hayran yapımı bir klondur. Tüm çizimler ve sesler kodla üretilmiştir.

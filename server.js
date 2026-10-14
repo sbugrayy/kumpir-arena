@@ -25,10 +25,19 @@ const TYPES = {
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/plain; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
 // Yalnızca oyunun dosyaları servis edilir
-const ALLOWED = [/^\/index\.html$/, /^\/css\/[\w.-]+\.css$/, /^\/js\/[\w.-]+\.js$/, /^\/favicon\.ico$/];
+const ALLOWED = [
+  /^\/index\.html$/,
+  /^\/css\/[\w.-]+\.css$/,
+  /^\/js\/[\w.-]+\.js$/,
+  /^\/icons\/[\w.-]+\.png$/,
+  /^\/manifest\.webmanifest$/,
+  /^\/sw\.js$/,
+  /^\/favicon\.ico$/,
+];
 
 const server = http.createServer((req, res) => {
   let urlPath;

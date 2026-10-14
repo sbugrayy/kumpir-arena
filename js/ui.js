@@ -1,4 +1,5 @@
-/* Kumpir Arena - menüler, dükkan, seviye atlama ve gösterge paneli */
+/* Kumpir Arena - arayüz çekirdeği: ekran yönetimi, menüler, HUD, duraklatma, oyun sonu,
+   başarımlar, günlük meydan okuma, ayarlar ve gamepad ile gezinme */
 (function (BR) {
   'use strict';
 
@@ -8,19 +9,24 @@
   const R = BR.Render;
   const $ = (id) => document.getElementById(id);
 
-  const SCREENS = ['menu', 'char', 'weapon', 'danger', 'levelup', 'crate', 'shop', 'pause', 'end', 'help', 'settings'];
+  const SCREENS = ['menu', 'char', 'weapon', 'danger', 'levelup', 'crate', 'stand', 'shop', 'map', 'event', 'rest', 'pause', 'end', 'ach', 'daily', 'help', 'settings'];
+  const BETWEEN = ['levelup', 'crate', 'stand', 'shop', 'map', 'event', 'rest'];
   const MINUS = '−';
+  const TARGET_NAMES = { near: 'En yakın', strong: 'En güçlü', weak: 'En az canlı' };
 
   const UI = {
     current: null,
     prev: 'menu',
-    sel: { charId: null, weaponId: null },
+    sel: { charId: null, weaponId: null, players: 1 },
     hud: {},
-    shownAt: 0, // çift tıklamaların yanlışlıkla ikinci seçimi yapmasını önlemek için
+    shownAt: 0,
     bannerTimer: 0,
     toastTimer: 0,
+    runAch: [],
+    TARGET_NAMES,
   };
 
+  /* ================= Yardımcılar ================= */
   function sfx(name) {
     BR.Audio.play(name);
   }
@@ -46,31 +52,15 @@
     return s;
   }
 
-  function freshlyShown() {
-    return performance.now() - UI.shownAt < 250;
-  }
-
   function blurActive() {
     const a = document.activeElement;
     if (a && typeof a.blur === 'function') a.blur();
   }
 
-  /* ---------- Ekran yönetimi ---------- */
-  UI.show = function (name) {
-    SCREENS.forEach((s) => {
-      $('scr-' + s).hidden = s !== name;
-    });
-    $('screens').classList.toggle('active', !!name);
-    UI.current = name;
-    $('hud').hidden = G.state !== 'wave';
-    closeModal();
-    if (name) {
-      const scr = $('scr-' + name);
-      scr.scrollTop = 0;
-    }
-  };
+  function freshlyShown() {
+    return performance.now() - UI.shownAt < 250;
+  }
 
-  /* ---------- Biçimlendirme ---------- */
   function fmtStat(key, v, signed) {
     const st = D.STAT_BY_KEY[key];
     const n = U.round1(v);
@@ -102,6 +92,27 @@
     return top;
   }
 
+  // Kademe noktaları: rengi ayırt edemeyenler için kademeyi şekille de göster
+  function tierPips(tier, evo) {
+    const box = el('span', 'tier-pips');
+    box.setAttribute('aria-hidden', 'true');
+    if (evo) {
+      box.textContent = 'EVRİM';
+      box.classList.add('evo');
+      return box;
+    }
+    for (let i = 0; i < tier; i++) box.append(el('i'));
+    return box;
+  }
+
+  function tierClass(def, tier) {
+    return def && def.evo ? 'tier-evo' : 'tier-' + tier;
+  }
+
+  function weaponName(def, tier) {
+    return def.evo ? def.name : def.name + ' ' + U.ROMAN[tier];
+  }
+
   function weaponLines(def, tier, s) {
     const C = G.Calc;
     const rows = [];
@@ -113,10 +124,13 @@
     rows.push(['Kritik', '×' + def.critMult + ' · %' + Math.round(C.critChance(s, def) * 100)]);
     rows.push(['Bekleme', C.weaponCd(def, tier, s).toFixed(2) + ' sn']);
     rows.push(['Menzil', String(Math.round(C.weaponRange(def, s)))]);
-    if (def.pierce && def.pierce[tier - 1]) rows.push(['Delme', def.pierce[tier - 1] + ' düşman']);
+    if (def.pierce && def.pierce[tier - 1]) rows.push(['Delme', def.pierce[tier - 1] >= 99 ? 'Hepsini' : def.pierce[tier - 1] + ' düşman']);
     if (def.burn) rows.push(['Yanma', Math.round(C.burnDamage(def, tier, s)) + ' × 5 tık']);
     if (def.explode) rows.push(['Patlama', def.explode[tier - 1] + ' yarıçap']);
     if (def.turret) rows.push(['Taret', 'Her dalga ' + U.ROMAN[tier] + '. kademe taret kurar']);
+    if (def.shock) rows.push(['Sarsıntı', def.shock + ' yarıçapta %60 hasar']);
+    if (def.homing) rows.push(['Güdümlü', 'Hedefini takip eder']);
+    if (def.lsHit) rows.push(['Can çalma', 'Her vuruşta 1 can']);
     const dl = el('dl', 'weapon-lines');
     rows.forEach((r) => {
       const row = el('div', 'wl-row');
@@ -129,14 +143,18 @@
   }
 
   function weaponCard(def, tier, s, tag) {
-    const card = el(tag || 'div', 'card weapon-card tier-' + tier);
+    const card = el(tag || 'div', 'card weapon-card ' + tierClass(def, tier));
     const ic = canvasEl('ico');
     R.weaponIcon(ic, def.id, tier, 48);
     const kind = 'Silah · ' + (def.type === 'melee' ? 'Yakın dövüş' : 'Menzilli');
-    card.append(cardTop(ic, def.name + ' ' + U.ROMAN[tier], kind));
+    const top = cardTop(ic, weaponName(def, tier), kind);
+    top.append(tierPips(tier, def.evo));
+    card.append(top);
     const tags = el('div', 'tags');
     def.cls.forEach((c) => tags.append(el('span', 'tag', D.CLASSES[c].name)));
-    card.append(tags, weaponLines(def, tier, s));
+    card.append(tags);
+    if (def.desc) card.append(el('p', 'card-note', def.desc));
+    card.append(weaponLines(def, tier, s));
     return card;
   }
 
@@ -144,7 +162,10 @@
     const card = el('div', 'card item-card tier-' + it.tier);
     const ic = canvasEl('ico');
     R.itemIcon(ic, it, 48);
-    card.append(cardTop(ic, it.name, 'Eşya · ' + D.TIERS[it.tier].name), statLines(it.stats));
+    const top = cardTop(ic, it.name, 'Eşya · ' + D.TIERS[it.tier].name + (it.fx ? ' · Kural değiştirir' : ''));
+    top.append(tierPips(it.tier));
+    card.append(top, statLines(it.stats));
+    if (it.desc) card.append(el('p', 'card-note fx', it.desc));
     if (it.turret) card.append(el('p', 'card-note', 'Her dalga başında ' + U.ROMAN[it.turret] + '. kademe bir taret kurar.'));
     const owned = G.run && G.run.items[it.id];
     if (it.max) card.append(el('p', 'card-note muted', 'En fazla ' + it.max + ' tane' + (owned ? ' · sende ' + owned : '')));
@@ -156,7 +177,8 @@
     const s = G.stats;
     container.innerHTML = '';
     const lvl = el('div', 'stat-level');
-    lvl.append(el('span', null, 'Seviye'), el('b', null, String(G.run.level)));
+    const stage = BR.Art.STAGE_NAMES[BR.Art.stageFor(G.run.level)];
+    lvl.append(el('span', null, 'Seviye · ' + stage), el('b', null, String(G.run.level)));
     container.append(lvl);
     D.STATS.forEach((st) => {
       const v = s[st.key] || 0;
@@ -181,9 +203,13 @@
     }
   }
 
-  function renderWeaponSlots(container, interactive) {
+  function renderWeaponSlots(container, mode) {
     container.innerHTML = '';
     const run = G.run;
+    if (D.CHAR_BY_ID[run.charId].noWeapons) {
+      container.append(el('p', 'muted empty-note', 'Haşlanmış silah taşıyamaz; dokunduğu düşmanı haşlar.'));
+      return;
+    }
     for (let i = 0; i < D.MAX_WEAPONS; i++) {
       const wp = run.weapons[i];
       if (!wp) {
@@ -191,17 +217,19 @@
         continue;
       }
       const def = D.WEAPON_BY_ID[wp.id];
-      const b = el('button', 'slot tier-' + wp.tier);
+      const b = el('button', 'slot ' + tierClass(def, wp.tier));
       const ic = canvasEl('ico');
       R.weaponIcon(ic, wp.id, wp.tier, 44);
       b.append(ic);
-      b.title = def.name + ' ' + U.ROMAN[wp.tier];
-      b.setAttribute('aria-label', def.name + ' ' + U.ROMAN[wp.tier]);
-      if (interactive && G.combineIndex(i) >= 0) {
+      const label = weaponName(def, wp.tier) + ' · hedef: ' + TARGET_NAMES[wp.target || 'near'];
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      if (wp.target && wp.target !== 'near') b.append(el('span', 'target-badge', wp.target === 'strong' ? 'G' : 'Z'));
+      if (mode === 'shop' && G.combineIndex(i) >= 0) {
         b.append(el('span', 'badge', '+'));
         b.title += ' (birleştirilebilir)';
       }
-      b.addEventListener('click', () => openWeaponModal(i, interactive));
+      b.addEventListener('click', () => UI.openWeaponModal(i, mode));
       container.append(b);
     }
   }
@@ -249,7 +277,71 @@
     });
   }
 
-  /* ---------- Modal ve bildirim ---------- */
+  /* ---------- Silah penceresi (dükkan ve duraklatma) ---------- */
+  UI.openWeaponModal = function (i, mode) {
+    const run = G.run;
+    const wp = run.weapons[i];
+    if (!wp) return;
+    const def = D.WEAPON_BY_ID[wp.id];
+    const card = weaponCard(def, wp.tier, G.stats, 'div');
+    const seg = el('div', 'seg target-seg');
+    seg.setAttribute('role', 'group');
+    seg.setAttribute('aria-label', 'Hedef önceliği');
+    seg.append(el('span', 'seg-label', 'Hedef'));
+    G.TARGET_MODES.forEach((m) => {
+      const b = el('button', 'seg-btn', TARGET_NAMES[m]);
+      b.setAttribute('aria-pressed', (wp.target || 'near') === m ? 'true' : 'false');
+      b.addEventListener('click', () => {
+        G.setTarget(i, m);
+        sfx('click');
+        UI.openWeaponModal(i, mode);
+        refreshAfterWeapon(mode);
+      });
+      seg.append(b);
+    });
+    card.append(seg);
+    const actions = [];
+    if (mode === 'shop') {
+      const ci = G.combineIndex(i);
+      actions.push({
+        label: wp.tier >= 4 || def.evo ? 'En üst kademe' : 'Birleştir → ' + U.ROMAN[wp.tier + 1],
+        cls: 'btn-primary',
+        disabled: ci < 0,
+        fn: () => {
+          if (G.combineWeapon(i)) {
+            sfx('buy');
+            closeModal();
+            refreshAfterWeapon(mode);
+          }
+        },
+      });
+      actions.push({
+        label: 'Sat (+' + G.sellPrice(wp) + ')',
+        disabled: run.weapons.length <= 1,
+        fn: () => {
+          const r = G.sellWeapon(i);
+          if (r.ok) {
+            sfx('coin');
+            closeModal();
+            refreshAfterWeapon(mode);
+          } else {
+            toast(r.reason);
+          }
+        },
+      });
+      if (ci < 0 && wp.tier < 4 && !def.evo) card.append(el('p', 'card-note muted', 'Birleştirmek için aynı kademede ikinci bir ' + def.name + ' gerekir.'));
+      if (run.weapons.length <= 1) card.append(el('p', 'card-note muted', 'Son silahını satamazsın.'));
+    }
+    actions.push({ label: 'Kapat' });
+    openModal(card, actions);
+  };
+
+  function refreshAfterWeapon(mode) {
+    if (mode === 'shop' && UI.renderShop) UI.renderShop();
+    else if (mode === 'pause') renderWeaponSlots($('pause-weapons'), 'pause');
+  }
+
+  /* ---------- Modal ve bildirimler ---------- */
   function openModal(bodyEl, actions) {
     const body = $('modal-body');
     body.innerHTML = '';
@@ -294,7 +386,7 @@
     clearTimeout(UI.toastTimer);
     UI.toastTimer = setTimeout(() => {
       t.hidden = true;
-    }, 1800);
+    }, 2400);
   }
 
   function banner(text, dur) {
@@ -302,7 +394,7 @@
     b.textContent = text;
     b.hidden = false;
     b.classList.remove('pop');
-    void b.offsetWidth; // animasyonu yeniden başlat
+    void b.offsetWidth;
     b.classList.add('pop');
     clearTimeout(UI.bannerTimer);
     UI.bannerTimer = setTimeout(() => {
@@ -310,7 +402,47 @@
     }, (dur || 1.6) * 1000);
   }
 
-  /* ---------- Ana menü ---------- */
+  function achToast(def) {
+    const box = $('ach-toasts');
+    const t = el('div', 'ach-toast');
+    t.append(el('b', null, 'Başarım: ' + def.name), el('span', null, def.desc));
+    if (def.unlocks) t.append(el('span', 'unlock', 'Yeni karakter açıldı: ' + D.CHAR_BY_ID[def.unlocks].name));
+    box.append(t);
+    setTimeout(() => t.remove(), 4200);
+    sfx('achieve');
+  }
+
+  UI.h = {
+    el, canvasEl, matIcon, sfx, blurActive, freshlyShown, fmtStat, statLines, cardTop, tierPips, tierClass,
+    weaponName, weaponCard, itemCard, renderStats, renderWeaponSlots, renderItems, renderSets,
+    openModal, closeModal, confirmBox, toast, banner,
+  };
+
+  /* ================= Ekran yönetimi ================= */
+  UI.show = function (name) {
+    SCREENS.forEach((s) => {
+      $('scr-' + s).hidden = s !== name;
+    });
+    $('screens').classList.toggle('active', !!name);
+    UI.current = name;
+    $('hud').hidden = G.state !== 'wave';
+    closeModal();
+    if (name) {
+      $('scr-' + name).scrollTop = 0;
+      UI.shownAt = performance.now();
+    }
+    UI.updateMusic();
+  };
+
+  UI.updateMusic = function () {
+    const A = BR.Audio;
+    A.duck(G.state === 'wave' && G.paused);
+    if (G.state === 'wave' && G.w) A.music(G.w.bossType ? 'boss' : 'wave');
+    else if (BETWEEN.includes(UI.current)) A.music('shop');
+    else A.music('menu');
+  };
+
+  /* ================= Ana menü ve koşu kurulumu ================= */
   function showMenu() {
     G.state = 'menu';
     G.paused = false;
@@ -318,23 +450,47 @@
     BR.Input.reset();
     $('btn-continue').hidden = !G.loadSave();
     UI.show('menu');
-    R.potatoIcon($('logo-potato'), 'allround', 96);
+    R.potatoIcon($('logo-potato'), 'allround', 96, { stage: 3, toppings: ['kasar', 'misir', 'sosis', 'tursu'] });
   }
   UI.showMenu = showMenu;
+
+  function setPlayers(n) {
+    UI.sel.players = n;
+    $('players-1').setAttribute('aria-pressed', n === 1 ? 'true' : 'false');
+    $('players-2').setAttribute('aria-pressed', n === 2 ? 'true' : 'false');
+    $('coop-note').hidden = n !== 2;
+  }
 
   function showChars() {
     const grid = $('char-grid');
     grid.innerHTML = '';
+    setPlayers(UI.sel.players);
     D.CHARACTERS.forEach((ch) => {
-      const card = el('button', 'card char-card');
+      const unlocked = BR.Meta.charUnlocked(ch);
+      const card = el('button', 'card char-card' + (unlocked ? '' : ' locked'));
       const ic = canvasEl('ico ico-lg');
       R.potatoIcon(ic, ch.id, 64);
       card.append(cardTop(ic, ch.name, ch.desc), statLines(ch.stats));
+      if (ch.rule) card.append(el('p', 'card-note fx', ch.rule));
       if (ch.onlyType) card.append(el('p', 'card-note', 'Dükkanda sadece menzilli silahlar çıkar.'));
+      const ab = D.ABILITIES[ch.ability];
+      card.append(el('p', 'card-note muted', 'Yetenek: ' + ab.name + ' · ' + ab.desc));
+      if (!unlocked) {
+        card.setAttribute('aria-disabled', 'true');
+        card.append(el('p', 'lock-note', 'Kilitli · ' + BR.Meta.unlockText(ch)));
+      }
       card.addEventListener('click', () => {
+        if (!unlocked) {
+          sfx('error');
+          toast('Kilitli: ' + BR.Meta.unlockText(ch));
+          return;
+        }
         sfx('click');
         UI.sel.charId = ch.id;
-        showWeapons();
+        if (ch.noWeapons) {
+          UI.sel.weaponId = null;
+          showDangers();
+        } else showWeapons();
       });
       grid.append(card);
     });
@@ -345,7 +501,7 @@
     const ch = D.CHAR_BY_ID[UI.sel.charId];
     const grid = $('weapon-grid');
     grid.innerHTML = '';
-    const s = G.computeStats({ charId: ch.id, upgrades: {}, bonus: {}, items: {}, weapons: [], level: 0 });
+    const s = G.computeStats({ charId: ch.id, upgrades: {}, bonus: {}, items: {}, weapons: [], level: 0, filling: [] });
     ch.starters.forEach((id) => {
       const def = D.WEAPON_BY_ID[id];
       const card = weaponCard(def, 1, s, 'button');
@@ -362,195 +518,40 @@
   function showDangers() {
     const grid = $('danger-grid');
     grid.innerHTML = '';
+    $('easy-note').hidden = !BR.settings.easy;
     D.DANGERS.forEach((dz, i) => {
       const card = el('button', 'card danger-card d' + i);
       const pips = el('div', 'pips');
       for (let k = 0; k < 4; k++) pips.append(el('span', k <= i ? 'on' : ''));
       card.append(el('div', 'card-name', dz.name), pips, el('p', 'card-desc', dz.desc));
       card.addEventListener('click', () => {
-        BR.Audio.init();
-        G.newRun(UI.sel.charId, UI.sel.weaponId, i);
+        startRun({
+          charId: UI.sel.charId, weaponId: UI.sel.weaponId, danger: i,
+          coop: UI.sel.players === 2, easy: !!BR.settings.easy,
+        });
       });
       grid.append(card);
     });
     UI.show('danger');
   }
 
-  /* ---------- Dalga arası akış ---------- */
-  function nextBetweenStep() {
-    const run = G.run;
-    if (run.pendingLevels > 0) showLevelUp();
-    else if (run.crates.length > 0) showCrate();
-    else {
-      G.enterShop();
-      showShop();
-    }
+  function startRun(opts) {
+    BR.Audio.init();
+    BR.Input.setCoop(!!opts.coop);
+    UI.runAch = [];
+    G.newRun(opts);
   }
+  UI.startRun = startRun;
 
-  function showLevelUp() {
-    const run = G.run;
-    const offer = G.getUpgradeOffer();
-    $('lvl-sub').textContent = run.pendingLevels > 1 ? run.pendingLevels + ' seçim kaldı' : 'Son seçim';
-    const grid = $('lvl-cards');
-    grid.innerHTML = '';
-    offer.forEach((o, i) => {
-      const up = D.UPGRADE_BY_STAT[o.stat];
-      const card = el('button', 'card upgrade-card tier-' + o.tier);
-      const ic = canvasEl('ico');
-      R.statIcon(ic, o.stat, 40);
-      const st = {};
-      st[o.stat] = G.upgradeValue(o);
-      card.append(cardTop(ic, up.name + ' ' + U.ROMAN[o.tier], D.TIERS[o.tier].name), statLines(st), el('span', 'key-hint', String(i + 1)));
-      card.addEventListener('click', () => chooseUpgrade(i));
-      grid.append(card);
-    });
-    const cost = G.upgradeRerollCost();
-    const rb = $('lvl-reroll');
-    rb.textContent = 'Yenile · ' + cost;
-    rb.disabled = run.materials < cost;
-    $('lvl-mats').textContent = run.materials;
-    renderStats($('lvl-stats'));
-    if (UI.current !== 'levelup') UI.show('levelup');
-    UI.shownAt = performance.now();
-  }
-
-  function chooseUpgrade(i) {
-    if (UI.current !== 'levelup' || freshlyShown()) return;
-    if (G.chooseUpgrade(i)) nextBetweenStep();
-  }
-
-  function showCrate() {
-    const run = G.run;
-    const o = G.getCrateOffer();
-    const it = D.ITEM_BY_ID[o.id];
-    $('crate-sub').textContent = run.crates.length > 1 ? run.crates.length + ' sandık açılacak' : 'Son sandık';
-    const box = $('crate-card');
-    box.innerHTML = '';
-    box.append(itemCard(it));
-    $('crate-recycle').textContent = 'Geri Dönüştür (+' + G.recyclePrice(o.id) + ')';
-    UI.show('crate');
-    UI.shownAt = performance.now();
-    sfx('crate');
-  }
-
-  /* ---------- Dükkan ---------- */
-  function showShop() {
-    renderShop();
-    UI.show('shop');
-  }
-
-  function offerCard(o, i) {
-    const s = G.stats;
-    const card = o.kind === 'weapon' ? weaponCard(D.WEAPON_BY_ID[o.id], o.tier, s, 'div') : itemCard(D.ITEM_BY_ID[o.id]);
-    card.classList.add('offer');
-    if (o.locked) card.classList.add('locked');
-    const chk = G.buyCheck(o);
-    if (chk.merge !== undefined) card.append(el('p', 'card-note good', 'Yuvalar dolu: elindeki aynı silahla birleşir.'));
-    else if (!chk.ok && (chk.reason === 'Silah yuvaları dolu' || chk.maxed)) card.append(el('p', 'card-note bad', chk.reason + '.'));
-    const actions = el('div', 'card-actions');
-    const buy = el('button', 'btn btn-buy' + (G.run.materials < chk.price ? ' cant' : ''));
-    buy.append(matIcon(), document.createTextNode(String(chk.price)));
-    buy.setAttribute('aria-label', 'Satın al, ' + chk.price + ' malzeme');
-    buy.disabled = !chk.ok;
-    if (!chk.ok && chk.reason) buy.title = chk.reason;
-    buy.addEventListener('click', () => {
-      const r = G.buy(i);
-      if (r.ok) {
-        sfx('buy');
-        renderShop();
-      } else {
-        sfx('error');
-        toast(r.reason);
-      }
-    });
-    const lock = el('button', 'btn btn-lock' + (o.locked ? ' on' : ''), o.locked ? 'Kilitli' : 'Kilitle');
-    lock.setAttribute('aria-pressed', o.locked ? 'true' : 'false');
-    lock.title = 'Kilitli teklif sonraki dükkanda da kalır';
-    lock.addEventListener('click', () => {
-      G.toggleLock(i);
-      sfx('click');
-      renderShop();
-    });
-    actions.append(buy, lock);
-    card.append(actions);
-    return card;
-  }
-
-  function renderShop() {
-    const run = G.run;
-    $('shop-wave').textContent = 'Sıradaki dalga: ' + (run.wave + 1) + ' / ' + D.MAX_WAVE;
-    $('shop-mats').textContent = run.materials;
-    const rc = G.rerollCost();
-    const rb = $('shop-reroll');
-    rb.textContent = 'Yenile · ' + rc;
-    rb.disabled = run.materials < rc;
-    const grid = $('shop-offers');
-    grid.innerHTML = '';
-    run.shop.forEach((o, i) => {
-      if (o) grid.append(offerCard(o, i));
-      else {
-        const sold = el('div', 'card sold');
-        sold.append(el('span', null, 'Satın alındı'));
-        grid.append(sold);
-      }
-    });
-    renderWeaponSlots($('shop-weapons'), true);
-    $('shop-wcount').textContent = run.weapons.length + ' / ' + D.MAX_WEAPONS;
-    renderSets($('shop-sets'));
-    const total = renderItems($('shop-items'));
-    $('shop-icount').textContent = total ? total + ' tane' : '';
-    $('shop-go').textContent = 'Başla: Dalga ' + (run.wave + 1);
-    renderStats($('shop-stats'));
-  }
-
-  function openWeaponModal(i, interactive) {
-    const run = G.run;
-    const wp = run.weapons[i];
-    if (!wp) return;
-    const def = D.WEAPON_BY_ID[wp.id];
-    const card = weaponCard(def, wp.tier, G.stats, 'div');
-    const actions = [];
-    if (interactive) {
-      const ci = G.combineIndex(i);
-      actions.push({
-        label: wp.tier >= 4 ? 'En üst kademe' : 'Birleştir → ' + U.ROMAN[wp.tier + 1],
-        cls: 'btn-primary',
-        disabled: ci < 0,
-        fn: () => {
-          if (G.combineWeapon(i)) {
-            sfx('buy');
-            closeModal();
-            renderShop();
-          }
-        },
-      });
-      actions.push({
-        label: 'Sat (+' + G.sellPrice(wp) + ')',
-        disabled: run.weapons.length <= 1,
-        fn: () => {
-          const r = G.sellWeapon(i);
-          if (r.ok) {
-            sfx('buy');
-            closeModal();
-            renderShop();
-          } else {
-            toast(r.reason);
-          }
-        },
-      });
-      if (ci < 0 && wp.tier < 4) card.append(el('p', 'card-note muted', 'Birleştirmek için aynı kademede ikinci bir ' + def.name + ' gerekir.'));
-      if (run.weapons.length <= 1) card.append(el('p', 'card-note muted', 'Son silahını satamazsın.'));
-    }
-    actions.push({ label: 'Kapat' });
-    openModal(card, actions);
-  }
-
-  /* ---------- Duraklatma ---------- */
+  /* ================= Duraklatma ================= */
   function pauseGame() {
     if (G.state !== 'wave' || G.paused || !G.w) return;
     G.togglePause(true);
-    $('pause-sub').textContent = 'Dalga ' + G.w.n + ' · ' + D.CHAR_BY_ID[G.run.charId].name;
-    renderWeaponSlots($('pause-weapons'), false);
+    const ch = D.CHAR_BY_ID[G.run.charId];
+    $('pause-sub').textContent = 'Dalga ' + G.w.n + ' · ' + ch.name + (G.run.coop ? ' · iki kişi' : '');
+    const ab = D.ABILITIES[ch.ability];
+    $('pause-info').textContent = 'Yetenek: ' + ab.name + ' (' + ab.desc + ') · Atılma: Boşluk/Shift · Yetenek: E/Q' + (G.run.coop ? ' · 2. oyuncu: Enter ve Sağ Shift' : '');
+    renderWeaponSlots($('pause-weapons'), 'pause');
     renderItems($('pause-items'));
     renderStats($('pause-stats'));
     UI.show('pause');
@@ -564,43 +565,152 @@
     blurActive();
   }
 
-  /* ---------- Oyun sonu ---------- */
+  /* ================= Oyun sonu ================= */
   function showEnd(win) {
     const run = G.run;
-    $('end-title').textContent = win ? 'Zafer!' : 'Öldün!';
+    const res = G.lastResult || { completed: 0, daily: null };
+    $('end-title').textContent = win ? 'Zafer!' : 'Püre oldun!';
+    const bossName = D.ENEMIES[run.boss] ? D.ENEMIES[run.boss].name : '';
     $('end-sub').textContent = win
-      ? 'Kraliçe Zorg\'un ordusunu püskürttün. Patates efsanesi oldun.'
-      : 'Dalga ' + run.wave + ' sırasında düştün. Bir sonraki koşu daha iyi geçecek.';
+      ? bossName + ' ve ordusu püskürtüldü. Patates efsanesi oldun!'
+      : (run.endless ? 'Sonsuz modda ' : '') + 'Dalga ' + run.wave + ' sırasında ezildin. Bir sonraki koşu daha iyi geçecek.';
     $('scr-end').classList.toggle('win', !!win);
     const dl = $('end-stats');
     dl.innerHTML = '';
     const rows = [
-      ['Karakter', D.CHAR_BY_ID[run.charId].name],
-      ['Tehlike', String(run.danger)],
-      ['Ulaşılan dalga', run.wave + ' / ' + D.MAX_WAVE],
-      ['Seviye', String(run.level)],
+      ['Karakter', D.CHAR_BY_ID[run.charId].name + (run.coop ? ' (iki kişi)' : '')],
+      ['Tehlike', String(run.danger) + (run.easy ? ' · kolay mod' : '')],
+      ['Tamamlanan dalga', String(res.completed)],
+      ['Seviye', run.level + ' · ' + BR.Art.STAGE_NAMES[BR.Art.stageFor(run.level)]],
       ['Öldürülen düşman', String(run.kills)],
       ['Toplanan malzeme', String(run.matsTotal)],
     ];
+    if (run.evolved) rows.push(['Evrimleşen silah', String(run.evolved)]);
+    if (run.standServed) rows.push(['Tezgahta servis', String(run.standServed)]);
     rows.forEach((r) => {
       const row = el('div', 'end-row');
       row.append(el('dt', null, r[0]), el('dd', null, r[1]));
       dl.append(row);
     });
-    R.potatoIcon($('end-potato'), run.charId, 96);
+    const dbox = $('end-daily');
+    dbox.innerHTML = '';
+    dbox.hidden = !res.daily;
+    if (res.daily) {
+      dbox.append(el('b', null, 'Günlük puan: ' + res.daily.score), el('span', null, res.daily.isBest ? 'Bugünün yeni rekoru!' : 'Bugünkü en iyin: ' + res.daily.best));
+    }
+    const abox = $('end-ach');
+    abox.innerHTML = '';
+    abox.hidden = !UI.runAch.length;
+    if (UI.runAch.length) {
+      abox.append(el('h3', null, 'Bu koşuda açılan başarımlar'));
+      const ul = el('ul');
+      UI.runAch.forEach((a) => ul.append(el('li', null, a.name + (a.unlocks ? ' · yeni karakter: ' + D.CHAR_BY_ID[a.unlocks].name : ''))));
+      abox.append(ul);
+    }
+    $('end-share-text').value = BR.Meta.shareText(run, res);
+    $('end-endless').hidden = !win;
+    R.potatoIcon($('end-potato'), run.charId, 96, { stage: BR.Art.stageFor(run.level), toppings: run.filling, worried: !win });
     UI.show('end');
   }
 
-  /* ---------- Gösterge paneli ---------- */
+  /* ================= Başarımlar ================= */
+  function showAch() {
+    const M = BR.Meta;
+    const st = M.profile.stats;
+    $('ach-sub').textContent = M.count() + ' / ' + D.ACHIEVEMENTS.length;
+    const dl = $('ach-stats');
+    dl.innerHTML = '';
+    [['Koşu', st.runs], ['Zafer', st.wins], ['Toplam öldürme', st.kills], ['En iyi dalga', st.bestWave], ['Sonsuz modda en iyi', st.bestEndless]].forEach((r) => {
+      const row = el('div', 'pstat');
+      row.append(el('dt', null, r[0]), el('dd', null, String(r[1])));
+      dl.append(row);
+    });
+    const grid = $('ach-grid');
+    grid.innerHTML = '';
+    D.ACHIEVEMENTS.forEach((a) => {
+      const done = M.has(a.id);
+      const card = el('div', 'ach-card' + (done ? ' done' : ''));
+      card.append(el('b', null, (done ? '✓ ' : '') + a.name), el('span', null, a.desc));
+      if (a.unlocks) card.append(el('span', 'unlock', (done ? 'Açıldı: ' : 'Açar: ') + D.CHAR_BY_ID[a.unlocks].name));
+      grid.append(card);
+    });
+    openSub('ach');
+  }
+
+  /* ================= Günlük meydan okuma ================= */
+  function dailyBoss(seed) {
+    return D.BOSSES[Math.floor(U.rngStep(seed).value * D.BOSSES.length)];
+  }
+
+  function showDaily() {
+    const date = U.todayKey();
+    const cfg = BR.Meta.dailyConfig(date);
+    $('daily-date').textContent = date;
+    const card = $('daily-card');
+    card.innerHTML = '';
+    const ch = D.CHAR_BY_ID[cfg.charId];
+    const pic = canvasEl('ico ico-lg');
+    R.potatoIcon(pic, ch.id, 72);
+    const info = el('div', 'daily-info');
+    info.append(el('div', 'card-name', ch.name), el('div', 'card-kind', ch.desc));
+    const ul = el('ul', 'daily-list');
+    if (cfg.weaponId) ul.append(el('li', null, 'Başlangıç silahı: ' + D.WEAPON_BY_ID[cfg.weaponId].name));
+    ul.append(el('li', null, 'Tehlike: ' + cfg.danger));
+    ul.append(el('li', null, '20. dalganın patronu: ' + D.ENEMIES[dailyBoss(cfg.seed)].name));
+    info.append(ul);
+    card.append(pic, info);
+    const best = BR.Meta.dailyBest(date);
+    $('daily-best').textContent = BR.Meta.dailyPlayed(date) ? 'Bugünkü en iyi puanın: ' + best : 'Bugün henüz oynamadın.';
+    $('daily-start').onclick = () => {
+      startRun({ charId: cfg.charId, weaponId: cfg.weaponId, danger: cfg.danger, daily: date, seed: cfg.seed, coop: false, easy: !!BR.settings.easy });
+    };
+    openSub('daily');
+  }
+
+  /* ================= Gösterge paneli ================= */
+  function setBar(fillId, textId, cur, max, key) {
+    const c = UI.hud;
+    const str = cur + ' / ' + max;
+    if (c[key] === str) return;
+    c[key] = str;
+    $(textId).textContent = (key === 'hp2' ? '2P · ' : '') + str;
+    $(fillId).style.transform = 'scaleX(' + U.clamp(cur / max, 0, 1).toFixed(3) + ')';
+  }
+
+  function setSkill(id, frac) {
+    const b = $(id);
+    const v = frac.toFixed(2);
+    if (b.dataset.cd !== v) {
+      b.dataset.cd = v;
+      b.style.setProperty('--cd', v);
+      b.classList.toggle('ready', frac <= 0);
+    }
+  }
+
   function updateHud() {
     const d = G.hud();
     if (!d) return;
     const c = UI.hud;
-    const hpStr = d.hp + ' / ' + d.maxHp;
-    if (c.hp !== hpStr) {
-      c.hp = hpStr;
-      $('hud-hp-text').textContent = hpStr;
-      $('hud-hp-fill').style.transform = 'scaleX(' + U.clamp(d.hp / d.maxHp, 0, 1).toFixed(3) + ')';
+    const p1 = d.players[0];
+    setBar('hud-hp-fill', 'hud-hp-text', p1.hp, p1.maxHp, 'hp');
+    const p2 = d.players[1];
+    if (p2) setBar('hud-hp2-fill', 'hud-hp2-text', p2.hp, p2.maxHp, 'hp2');
+    if (c.coop !== !!p2) {
+      c.coop = !!p2;
+      $('hud-hp2').hidden = !p2;
+      $('hud-skills-2').hidden = !p2;
+      $('hud').classList.toggle('coop', !!p2);
+    }
+    setSkill('sk1-dash', p1.dash);
+    setSkill('sk1-abil', p1.abil);
+    if (p2) {
+      setSkill('sk2-dash', p2.dash);
+      setSkill('sk2-abil', p2.abil);
+    }
+    if (c.abilName !== d.abilityName) {
+      c.abilName = d.abilityName;
+      $('sk1-abil-name').textContent = d.abilityName;
+      $('sk2-abil-name').textContent = d.abilityName;
     }
     const xpKey = d.level + ':' + d.xp;
     if (c.xp !== xpKey) {
@@ -629,32 +739,55 @@
       t.textContent = d.timeLeft;
       t.classList.toggle('low', d.timeLeft <= 5);
     }
+    if (c.arena !== d.arena) {
+      c.arena = d.arena;
+      $('hud-arena').textContent = d.arena;
+    }
+    if (c.mod !== d.mod) {
+      c.mod = d.mod;
+      $('hud-mod').hidden = !d.mod;
+      $('hud-mod').textContent = d.mod || '';
+    }
     const bb = $('boss-bar');
     if (d.boss) {
       if (bb.hidden) bb.hidden = false;
-      if (c.bossName !== d.boss.name) {
-        c.bossName = d.boss.name;
-        $('boss-name').textContent = d.boss.name;
+      const name = d.boss.name + (d.boss.affixes.length ? ' · ' + d.boss.affixes.join(' · ') : '');
+      if (c.bossName !== name) {
+        c.bossName = name;
+        $('boss-name').textContent = name;
       }
       $('boss-fill').style.transform = 'scaleX(' + d.boss.frac.toFixed(3) + ')';
     } else if (!bb.hidden) {
       bb.hidden = true;
       c.bossName = null;
     }
+    if (G.w) BR.Audio.setIntensity(G.w.t / G.w.duration);
   }
 
   UI.frame = function () {
     if (G.state === 'wave' && G.w) updateHud();
   };
 
-  /* ---------- Ayarlar ---------- */
+  /* ================= Ayarlar ================= */
   function syncSettingsUI() {
     const st = BR.settings;
     $('set-volume').value = Math.round(st.volume * 100);
     $('set-volume-out').textContent = Math.round(st.volume * 100);
+    $('set-music').value = Math.round(st.music * 100);
+    $('set-music-out').textContent = Math.round(st.music * 100);
+    $('set-speed').value = String(st.speed);
+    $('set-easy').checked = !!st.easy;
+    $('set-cb').checked = !!st.colorblind;
     $('set-shake').checked = !!st.shake;
+    $('set-hitstop').checked = !!st.hitstop;
     $('set-dmg').checked = !!st.dmgNumbers;
   }
+
+  UI.applyColorblind = function () {
+    const on = !!BR.settings.colorblind;
+    D.applyPalette(on ? 'colorblind' : 'normal');
+    document.documentElement.classList.toggle('cb', on);
+  };
 
   function openSub(name) {
     UI.prev = UI.current || 'menu';
@@ -666,9 +799,56 @@
     UI.show(UI.prev || 'menu');
   }
 
-  /* ---------- Kurulum ---------- */
+  // Esc ve gamepad B: bulunulan ekrana göre geri git
+  function handleBack() {
+    if (!$('modal').hidden) {
+      closeModal();
+      return;
+    }
+    if (G.state === 'wave') {
+      if (!G.paused) pauseGame();
+      else if (UI.current === 'pause') resumeGame();
+      else if (UI.current === 'settings' || UI.current === 'help') goBack();
+      return;
+    }
+    const cur = UI.current;
+    if (cur === 'settings' || cur === 'help' || cur === 'ach' || cur === 'daily') goBack();
+    else if (cur === 'char') UI.show('menu');
+    else if (cur === 'weapon') showChars();
+    else if (cur === 'danger') {
+      if (D.CHAR_BY_ID[UI.sel.charId].noWeapons) showChars();
+      else showWeapons();
+    } else if (cur === 'map' && UI.backToShop) UI.backToShop();
+  }
+  UI.handleBack = handleBack;
+
+  /* ================= Gamepad ile gezinme ================= */
+  UI.navigate = function (dir) {
+    if (G.state === 'wave' && !G.paused) return;
+    if (dir === 'back') {
+      handleBack();
+      return;
+    }
+    const root = !$('modal').hidden ? $('modal') : UI.current ? $('scr-' + UI.current) : null;
+    if (!root) return;
+    const items = Array.from(root.querySelectorAll('button, input, select')).filter((e) => !e.disabled && e.offsetParent !== null);
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    if (dir === 'ok') {
+      if (i >= 0) items[i].click();
+      else items[0].focus();
+      return;
+    }
+    let j = i < 0 ? 0 : dir === 'up' || dir === 'left' ? i - 1 : i + 1;
+    j = (j + items.length) % items.length;
+    items[j].focus();
+    if (items[j].scrollIntoView) items[j].scrollIntoView({ block: 'nearest' });
+  };
+
+  /* ================= Kurulum ================= */
   UI.init = function (hot) {
     if (hot && hot.save) G.importSave(hot.save);
+    UI.applyColorblind();
 
     $('btn-new').addEventListener('click', () => {
       BR.Audio.init();
@@ -684,130 +864,173 @@
         showMenu();
         return;
       }
-      if (phase === 'wave') return;
-      if (phase === 'shop') {
-        G.enterShop();
-        showShop();
-      } else {
-        nextBetweenStep();
-      }
+      BR.Input.setCoop(G.run.coop);
+      UI.runAch = [];
+      if (phase !== 'wave') UI.resumePhase(phase);
+    });
+    $('btn-daily').addEventListener('click', () => {
+      BR.Audio.init();
+      sfx('click');
+      showDaily();
+    });
+    $('btn-ach').addEventListener('click', () => {
+      sfx('click');
+      showAch();
     });
     $('btn-help').addEventListener('click', () => openSub('help'));
     $('btn-settings').addEventListener('click', () => openSub('settings'));
     $('char-back').addEventListener('click', () => UI.show('menu'));
     $('weapon-back').addEventListener('click', () => showChars());
-    $('danger-back').addEventListener('click', () => showWeapons());
+    $('danger-back').addEventListener('click', () => handleBack());
     $('help-back').addEventListener('click', goBack);
     $('settings-back').addEventListener('click', goBack);
-
-    $('lvl-reroll').addEventListener('click', () => {
-      if (G.rerollUpgrades()) {
-        sfx('click');
-        showLevelUp();
-      } else {
-        sfx('error');
-        toast('Yetersiz malzeme');
-      }
-    });
-    $('crate-take').addEventListener('click', () => {
-      if (UI.current !== 'crate' || freshlyShown()) return;
-      if (G.takeCrate(false)) sfx('buy');
-      nextBetweenStep();
-    });
-    $('crate-recycle').addEventListener('click', () => {
-      if (UI.current !== 'crate' || freshlyShown()) return;
-      if (G.takeCrate(true)) sfx('buy');
-      nextBetweenStep();
-    });
-    $('shop-reroll').addEventListener('click', () => {
-      if (G.reroll()) {
-        sfx('click');
-        renderShop();
-      } else {
-        sfx('error');
-        toast('Yetersiz malzeme');
-      }
-    });
-    $('shop-go').addEventListener('click', () => {
-      sfx('click');
-      G.startNextWave();
-    });
+    $('ach-back').addEventListener('click', goBack);
+    $('daily-back').addEventListener('click', goBack);
+    $('players-1').addEventListener('click', () => setPlayers(1));
+    $('players-2').addEventListener('click', () => setPlayers(2));
 
     $('btn-pause').addEventListener('click', pauseGame);
     $('pause-resume').addEventListener('click', resumeGame);
     $('pause-settings').addEventListener('click', () => openSub('settings'));
     $('pause-help').addEventListener('click', () => openSub('help'));
     $('pause-quit').addEventListener('click', () => {
-      confirmBox('Ana menüye dönülsün mü?', 'Bu dalgadaki ilerleme kaybolur. Menüden "Devam Et" ile son dükkandan sürdürebilirsin.', 'Menüye dön', showMenu);
+      confirmBox('Ana menüye dönülsün mü?', 'Bu dalgadaki ilerleme kaybolur. Menüden "Devam Et" ile son duraktan sürdürebilirsin.', 'Menüye dön', showMenu);
     });
     $('end-retry').addEventListener('click', () => {
       const c = G.lastConfig;
-      if (c) G.newRun(c.charId, c.weaponId, c.danger);
+      if (c) startRun(c);
       else showMenu();
     });
     $('end-menu').addEventListener('click', showMenu);
+    $('end-endless').addEventListener('click', () => {
+      if (G.continueEndless()) {
+        sfx('wave');
+        toast('Sonsuz mod: dalgalar zorlaşarak sürüyor. Her 10 dalgada bir patron!');
+        UI.nextBetweenStep();
+      }
+    });
+    $('end-share').addEventListener('click', () => {
+      const input = $('end-share-text');
+      const text = input.value;
+      const done = () => toast('Sonuç kopyalandı');
+      const fallback = () => {
+        input.focus();
+        input.select();
+        toast('Metni seçtim; kopyalamak için Ctrl+C');
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+        else fallback();
+      } catch (e) {
+        fallback();
+      }
+    });
+
+    // dokunmatik ve tıklanabilir yetenek düğmeleri
+    const bindSkill = (id, p, action) => {
+      $(id).addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        BR.Input.press(p, action);
+      });
+    };
+    bindSkill('sk1-dash', 0, 'dash');
+    bindSkill('sk1-abil', 0, 'ability');
+    bindSkill('sk2-dash', 1, 'dash');
+    bindSkill('sk2-abil', 1, 'ability');
 
     $('modal').addEventListener('click', (e) => {
       if (e.target === $('modal')) closeModal();
     });
 
+    const save = () => BR.saveSettings();
     $('set-volume').addEventListener('input', (e) => {
       const v = Number(e.target.value) / 100;
       BR.settings.volume = v;
       $('set-volume-out').textContent = Math.round(v * 100);
       BR.Audio.setVolume(v);
-      BR.saveSettings();
+      save();
     });
     $('set-volume').addEventListener('change', () => {
       BR.Audio.init();
       sfx('pickup');
     });
+    $('set-music').addEventListener('input', (e) => {
+      const v = Number(e.target.value) / 100;
+      BR.settings.music = v;
+      $('set-music-out').textContent = Math.round(v * 100);
+      BR.Audio.init();
+      BR.Audio.setMusicVolume(v);
+      save();
+    });
+    $('set-speed').addEventListener('change', (e) => {
+      const v = Number(e.target.value);
+      BR.settings.speed = [0.75, 1, 1.25].includes(v) ? v : 1;
+      save();
+    });
+    $('set-easy').addEventListener('change', (e) => {
+      BR.settings.easy = e.target.checked;
+      save();
+    });
+    $('set-cb').addEventListener('change', (e) => {
+      BR.settings.colorblind = e.target.checked;
+      UI.applyColorblind();
+      save();
+    });
     $('set-shake').addEventListener('change', (e) => {
       BR.settings.shake = e.target.checked;
-      BR.saveSettings();
+      save();
+    });
+    $('set-hitstop').addEventListener('change', (e) => {
+      BR.settings.hitstop = e.target.checked;
+      save();
     });
     $('set-dmg').addEventListener('change', (e) => {
       BR.settings.dmgNumbers = e.target.checked;
-      BR.saveSettings();
+      save();
     });
 
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' || e.code === 'KeyP') {
-        if (!$('modal').hidden) {
-          closeModal();
-          return;
-        }
-        if (G.state === 'wave') {
-          if (!G.paused) pauseGame();
-          else if (UI.current === 'pause') resumeGame();
-          else if (UI.current === 'settings' || UI.current === 'help') goBack();
-        } else if (UI.current === 'settings' || UI.current === 'help') {
-          goBack();
-        }
+      if (e.code === 'Escape' || (e.code === 'KeyP' && G.state === 'wave')) {
+        handleBack();
         return;
       }
-      if (UI.current === 'levelup' && /^Digit[1-4]$/.test(e.code) && $('modal').hidden) {
-        chooseUpgrade(Number(e.code.slice(5)) - 1);
+      if (UI.current === 'levelup' && /^Digit[1-4]$/.test(e.code) && $('modal').hidden && UI.chooseUpgrade) {
+        UI.chooseUpgrade(Number(e.code.slice(5)) - 1);
       }
     });
 
-    const unlock = () => BR.Audio.init();
+    const unlock = () => {
+      BR.Audio.init();
+      UI.updateMusic();
+    };
     document.addEventListener('pointerdown', unlock, true);
     document.addEventListener('keydown', unlock, true);
+
+    BR.Input.onNav = UI.navigate;
+    BR.Input.onPause = () => {
+      if (G.state === 'wave') handleBack();
+    };
 
     G.on('waveStart', (w) => {
       UI.hud = {};
       UI.show(null);
       blurActive();
-      banner('DALGA ' + w.n, 1.6);
+      const arena = D.ARENAS[w.arena.id].name;
+      banner('DALGA ' + w.n + (w.modId ? ' · ' + D.MODIFIERS[w.modId].name.toLocaleUpperCase('tr-TR') : ''), 1.8);
+      if (w.n === 1 || D.arenaFor(w.n - 1) !== w.arena.id) toast(arena + ': ' + D.ARENAS[w.arena.id].desc);
+      UI.updateMusic();
     });
     G.on('banner', (text) => banner(text, 2));
     G.on('between', () => {
       $('hud').hidden = true;
-      nextBetweenStep();
+      UI.nextBetweenStep();
     });
     G.on('gameOver', () => showEnd(false));
     G.on('victory', () => showEnd(true));
+    G.on('achievement', (def) => {
+      UI.runAch.push(def);
+      achToast(def);
+    });
 
     showMenu();
   };

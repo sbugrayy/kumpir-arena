@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kumpir Arena</title>
+<meta name="theme-color" content="#1a1511">
+<meta name="description" content="Brotato'dan esinlenen, tarayıcıda oynanan arena hayatta kalma oyunu.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Paytone+One&family=Nunito:wght@500;700;800&display=swap">
@@ -17,14 +22,24 @@
   <div id="hud" hidden>
     <div class="hud-tl">
       <div class="bar bar-hp"><div class="bar-fill" id="hud-hp-fill"></div><span class="bar-text" id="hud-hp-text">10 / 10</span></div>
+      <div class="bar bar-hp bar-p2" id="hud-hp2" hidden><div class="bar-fill" id="hud-hp2-fill"></div><span class="bar-text" id="hud-hp2-text">2P</span></div>
       <div class="bar bar-xp"><div class="bar-fill" id="hud-xp-fill"></div><span class="bar-text" id="hud-xp-text">SV. 0</span></div>
       <div class="hud-mats"><span class="mat-ico" aria-hidden="true"></span><span id="hud-mats">0</span><span class="hud-bag" id="hud-bag" hidden></span></div>
     </div>
     <div class="hud-top">
       <div class="hud-wave" id="hud-wave">DALGA 1</div>
       <div class="hud-timer" id="hud-timer">20</div>
+      <div class="hud-tags"><span class="hud-tag" id="hud-arena"></span><span class="hud-tag mod" id="hud-mod" hidden></span></div>
     </div>
     <button class="hud-pause" id="btn-pause" type="button" aria-label="Duraklat"><span></span><span></span></button>
+    <div class="hud-skills" id="hud-skills-1">
+      <button class="skill" id="sk1-dash" type="button" aria-label="Atıl"><span class="skill-cd"></span><span class="skill-name">Atıl</span><kbd class="skill-key">Boşluk</kbd></button>
+      <button class="skill" id="sk1-abil" type="button" aria-label="Yetenek"><span class="skill-cd"></span><span class="skill-name" id="sk1-abil-name">Yetenek</span><kbd class="skill-key">E</kbd></button>
+    </div>
+    <div class="hud-skills right" id="hud-skills-2" hidden>
+      <button class="skill" id="sk2-dash" type="button" aria-label="2. oyuncu atıl"><span class="skill-cd"></span><span class="skill-name">Atıl</span><kbd class="skill-key">Enter</kbd></button>
+      <button class="skill" id="sk2-abil" type="button" aria-label="2. oyuncu yetenek"><span class="skill-cd"></span><span class="skill-name" id="sk2-abil-name">Yetenek</span><kbd class="skill-key">Sağ Shift</kbd></button>
+    </div>
     <div class="boss-bar" id="boss-bar" hidden>
       <div class="boss-name" id="boss-name"></div>
       <div class="bar bar-boss"><div class="bar-fill" id="boss-fill"></div></div>
@@ -44,10 +59,14 @@
         <div class="menu-buttons">
           <button class="btn btn-primary btn-big" id="btn-new" type="button">Yeni Oyun</button>
           <button class="btn btn-big" id="btn-continue" type="button" hidden>Devam Et</button>
-          <button class="btn" id="btn-help" type="button">Nasıl Oynanır</button>
+          <button class="btn" id="btn-daily" type="button">Günlük Meydan Okuma</button>
+          <div class="menu-row">
+            <button class="btn" id="btn-ach" type="button">Başarımlar</button>
+            <button class="btn" id="btn-help" type="button">Nasıl Oynanır</button>
+          </div>
           <button class="btn" id="btn-settings" type="button">Ayarlar</button>
         </div>
-        <p class="menu-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> veya ok tuşları ile hareket · <kbd>Esc</kbd> duraklat · silahlar kendiliğinden ateş eder</p>
+        <p class="menu-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hareket · <kbd>Boşluk</kbd> atıl · <kbd>E</kbd> yetenek · <kbd>Esc</kbd> duraklat · gamepad desteklenir</p>
         <p class="credit">Brotato oyunundan esinlenen, hayran yapımı bir klon.</p>
       </div>
     </section>
@@ -60,6 +79,12 @@
           <h2>Karakterini Seç</h2>
           <span class="step">1 / 3</span>
         </header>
+        <div class="seg" role="group" aria-label="Oyuncu sayısı">
+          <span class="seg-label">Oyuncu sayısı</span>
+          <button class="seg-btn" id="players-1" type="button" aria-pressed="true">Tek kişi</button>
+          <button class="seg-btn" id="players-2" type="button" aria-pressed="false">İki kişi (aynı klavye)</button>
+        </div>
+        <p class="coop-note" id="coop-note" hidden>1. oyuncu: <kbd>WASD</kbd> · <kbd>Boşluk</kbd> atıl · <kbd>E</kbd> yetenek. 2. oyuncu: ok tuşları · <kbd>Enter</kbd> atıl · <kbd>Sağ Shift</kbd> yetenek. İki gamepad de olur. İkiniz aynı patates yapısını paylaşırsınız.</p>
         <div class="card-grid" id="char-grid"></div>
       </div>
     </section>
@@ -84,6 +109,7 @@
           <h2>Tehlike Seviyesi</h2>
           <span class="step">3 / 3</span>
         </header>
+        <p class="note" id="easy-note" hidden>Kolay mod açık: aldığın hasar yarıya iner. Ayarlardan kapatabilirsin.</p>
         <div class="card-grid danger-grid" id="danger-grid"></div>
       </div>
     </section>
@@ -124,6 +150,41 @@
       </div>
     </section>
 
+    <!-- Gece tezgahı -->
+    <section class="screen" id="scr-stand" hidden>
+      <div class="panel-wrap stand">
+        <header class="screen-head">
+          <span></span>
+          <h2>Ortaköy Tezgahı</h2>
+          <span class="step" id="stand-sub"></span>
+        </header>
+        <p class="note">Gece oldu, tezgahı aç: kilerdeki malzemelerle müşterinin siparişini birebir hazırla ve servis et. Hızlı servise bahşiş! Malzemeyi satmak yerine kumpirine koymak için dükkandaki Kumpir sekmesini kullanabilirsin.</p>
+        <div class="stand-body">
+          <div class="stand-main">
+            <div class="customer" id="stand-customer"></div>
+            <div class="plate-wrap">
+              <h3>Tabak</h3>
+              <div class="plate" id="stand-plate"></div>
+            </div>
+            <div class="row-actions left">
+              <button class="btn btn-primary" id="stand-serve" type="button">Servis Et</button>
+              <button class="btn" id="stand-undo" type="button">Geri Al</button>
+              <button class="btn" id="stand-clear" type="button">Tabağı Boşalt</button>
+              <button class="btn" id="stand-skip" type="button">Müşteriyi Geç</button>
+            </div>
+          </div>
+          <aside class="side-col">
+            <h3>Kiler</h3>
+            <div class="pantry" id="stand-pantry"></div>
+            <div class="stand-earned" id="stand-earned"></div>
+          </aside>
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-danger" id="stand-close" type="button">Tezgahı Kapat</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Dükkan -->
     <section class="screen" id="scr-shop" hidden>
       <div class="panel-wrap with-side shop">
@@ -133,25 +194,82 @@
               <h2>Dükkan</h2>
               <span class="step" id="shop-wave"></span>
             </div>
+            <span class="discount" id="shop-discount" hidden></span>
             <div class="mat-pill big"><span class="mat-ico" aria-hidden="true"></span><span id="shop-mats">0</span></div>
             <button class="btn" id="shop-reroll" type="button">Yenile</button>
           </header>
           <div class="card-grid offer-grid" id="shop-offers"></div>
-          <div class="inventory">
+          <div class="tabs" role="tablist" aria-label="Dükkan bölümleri">
+            <button class="tab" role="tab" id="tab-inv" type="button" aria-selected="true">Envanter</button>
+            <button class="tab" role="tab" id="tab-kumpir" type="button" aria-selected="false">Kumpir</button>
+            <button class="tab" role="tab" id="tab-garden" type="button" aria-selected="false">Bahçe</button>
+            <button class="tab" role="tab" id="tab-evo" type="button" aria-selected="false">Evrim</button>
+          </div>
+          <div class="inventory" id="pane-inv" role="tabpanel">
             <div class="inv-head"><h3>Silahlar</h3><span class="muted" id="shop-wcount">1 / 6</span></div>
             <div class="weapon-slots" id="shop-weapons"></div>
             <div class="sets" id="shop-sets"></div>
             <div class="inv-head"><h3>Eşyalar</h3><span class="muted" id="shop-icount">0</span></div>
             <div class="item-grid" id="shop-items"></div>
           </div>
+          <div class="inventory" id="pane-kumpir" role="tabpanel" hidden></div>
+          <div class="inventory" id="pane-garden" role="tabpanel" hidden></div>
+          <div class="inventory" id="pane-evo" role="tabpanel" hidden></div>
           <div class="shop-go-row">
-            <button class="btn btn-primary btn-big" id="shop-go" type="button">Dalgayı Başlat</button>
+            <button class="btn btn-primary btn-big" id="shop-go" type="button">Haritaya Git</button>
           </div>
         </div>
         <aside class="side-col">
           <h3>İstatistikler</h3>
           <div class="stat-list" id="shop-stats"></div>
         </aside>
+      </div>
+    </section>
+
+    <!-- Rota haritası -->
+    <section class="screen" id="scr-map" hidden>
+      <div class="panel-wrap map-wrap">
+        <header class="screen-head">
+          <button class="btn btn-ghost" id="map-back" type="button">← Dükkan</button>
+          <h2>Rota Haritası</h2>
+          <span class="step" id="map-sub"></span>
+        </header>
+        <p class="note">Sıradaki durağını seç. Parlayan düğümler seçilebilir. Bazı düğümler risk ve ödül getiren bir değiştirici taşır.</p>
+        <div class="map-box" id="map-box">
+          <canvas id="map-canvas" aria-hidden="true"></canvas>
+          <div class="map-nodes" id="map-nodes"></div>
+        </div>
+        <div class="map-info" id="map-info"></div>
+      </div>
+    </section>
+
+    <!-- Olay -->
+    <section class="screen" id="scr-event" hidden>
+      <div class="panel-wrap narrow event">
+        <header class="screen-head">
+          <span></span>
+          <h2 id="event-title">Olay</h2>
+          <span class="step" id="event-sub"></span>
+        </header>
+        <p class="event-text" id="event-text"></p>
+        <div class="choices" id="event-choices"></div>
+        <p class="event-result" id="event-result" hidden></p>
+        <div class="row-actions">
+          <button class="btn btn-primary btn-big" id="event-go" type="button" hidden>Dalgayı Başlat</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dinlenme -->
+    <section class="screen" id="scr-rest" hidden>
+      <div class="panel-wrap narrow">
+        <header class="screen-head">
+          <span></span>
+          <h2>Dinlenme</h2>
+          <span class="step" id="rest-sub"></span>
+        </header>
+        <p class="note">Bu durakta savaş yok. Ateşin başında bir ödül seç.</p>
+        <div class="choices" id="rest-choices"></div>
       </div>
     </section>
 
@@ -166,8 +284,9 @@
             <button class="btn" id="pause-help" type="button">Nasıl Oynanır</button>
             <button class="btn btn-danger" id="pause-quit" type="button">Ana Menüye Dön</button>
           </div>
+          <p class="note" id="pause-info"></p>
           <div class="inventory">
-            <div class="inv-head"><h3>Silahlar</h3></div>
+            <div class="inv-head"><h3>Silahlar</h3><span class="muted">Hedef seçmek için silaha tıkla</span></div>
             <div class="weapon-slots" id="pause-weapons"></div>
             <div class="inv-head"><h3>Eşyalar</h3></div>
             <div class="item-grid" id="pause-items"></div>
@@ -184,12 +303,49 @@
     <section class="screen" id="scr-end" hidden>
       <div class="panel-wrap narrow end">
         <canvas class="end-potato" id="end-potato" width="96" height="96" aria-hidden="true"></canvas>
-        <h2 id="end-title">Öldün!</h2>
+        <h2 id="end-title">Püre oldun!</h2>
         <p class="end-sub" id="end-sub"></p>
+        <div class="daily-result" id="end-daily" hidden></div>
         <dl class="end-stats" id="end-stats"></dl>
+        <div class="end-ach" id="end-ach" hidden></div>
+        <div class="share" id="end-share-box">
+          <input class="share-text" id="end-share-text" type="text" readonly aria-label="Paylaşılacak sonuç">
+          <button class="btn" id="end-share" type="button">Sonucu Kopyala</button>
+        </div>
         <div class="row-actions">
+          <button class="btn btn-primary btn-big" id="end-endless" type="button" hidden>Sonsuz Moda Devam Et</button>
           <button class="btn btn-primary btn-big" id="end-retry" type="button">Tekrar Dene</button>
           <button class="btn" id="end-menu" type="button">Ana Menü</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Başarımlar -->
+    <section class="screen" id="scr-ach" hidden>
+      <div class="panel-wrap">
+        <header class="screen-head">
+          <button class="btn btn-ghost" id="ach-back" type="button">← Geri</button>
+          <h2>Başarımlar</h2>
+          <span class="step" id="ach-sub"></span>
+        </header>
+        <dl class="profile-stats" id="ach-stats"></dl>
+        <div class="ach-grid" id="ach-grid"></div>
+      </div>
+    </section>
+
+    <!-- Günlük meydan okuma -->
+    <section class="screen" id="scr-daily" hidden>
+      <div class="panel-wrap narrow daily">
+        <header class="screen-head">
+          <button class="btn btn-ghost" id="daily-back" type="button">← Geri</button>
+          <h2>Günlük Meydan Okuma</h2>
+          <span class="step" id="daily-date"></span>
+        </header>
+        <p class="note">Bugün herkes aynı karakter, silah, harita ve dükkan sırasıyla oynar. Ne kadar ileri gidersen o kadar puan.</p>
+        <div class="daily-card" id="daily-card"></div>
+        <p class="daily-best" id="daily-best"></p>
+        <div class="row-actions">
+          <button class="btn btn-primary btn-big" id="daily-start" type="button">Başla</button>
         </div>
       </div>
     </section>
@@ -203,13 +359,17 @@
           <span></span>
         </header>
         <ul class="help-list">
-          <li><strong>Hareket et, gerisini silahlar halleder.</strong> WASD ya da ok tuşlarıyla yürü. Dokunmatik ekranda parmağını sürükle. Silahların menzile giren en yakın düşmana kendiliğinden saldırır.</li>
-          <li><strong>Sayaç bitene kadar hayatta kal.</strong> Her dalga sayaç sıfırlanınca biter. Toplam 20 dalga var; 20. dalgada Kraliçe Zorg gelir.</li>
-          <li><strong>Yeşil malzemeleri topla.</strong> Malzeme hem para hem deneyimdir. Dalga sonunda yerde kalanlar çantana girer ve sonraki dalgada topladıklarını ikiye katlar.</li>
-          <li><strong>Seviye atla, geliştirme seç.</strong> Her seviye +1 maks. can verir; dalga bitince her seviye için bir istatistik geliştirmesi seçersin.</li>
-          <li><strong>Dükkanda alışveriş yap.</strong> En fazla 6 silah taşıyabilirsin. Aynı silahtan aynı kademede iki tane varsa birleştirip bir üst kademeye çıkarabilirsin. Beğendiğin teklifi kilitlersen sonraki dükkanda da kalır.</li>
-          <li><strong>Ağaçları kes.</strong> Ağaçlardan meyve (+3 can) ve sandık çıkar. Sandıklar dalga sonunda bedava eşya verir.</li>
-          <li><strong>Set bonusu topla.</strong> Aynı sınıftan farklı silahlar taşımak ek istatistik kazandırır (ör. 2 Ateşli silah: +10 Menzil).</li>
+          <li><strong>Hareket et, gerisini silahlar halleder.</strong> WASD ya da ok tuşlarıyla yürü. Silahların menzile giren düşmana kendiliğinden saldırır. Dokunmatik ekranda parmağını sürükle.</li>
+          <li><strong>Atıl ve yeteneğini kullan.</strong> Boşluk ya da Shift ile kısa bir atılma yaparsın; atılırken hasar almazsın. E ya da Q her karakterin kendine özgü yeteneğini kullanır.</li>
+          <li><strong>Hedef seç.</strong> Dükkanda ya da duraklatınca silahına tıklayıp "en yakın", "en güçlü" ya da "en az canlı" düşmana nişan almasını sağla.</li>
+          <li><strong>Rotanı çiz.</strong> Her dalgadan sonra haritada sıradaki durağı seçersin: normal dalga, elit dalga, olay ya da dinlenme. Bazı duraklar sis, kalabalık, altın yağmuru gibi risk ve ödül getiren değiştiriciler taşır.</li>
+          <li><strong>Malzeme topla, faiz kazan.</strong> Yeşil malzemeler hem para hem deneyimdir. Dalga sonunda elinde tuttuğun her 10 malzeme için 1 faiz alırsın (en fazla 10).</li>
+          <li><strong>Kumpirini doldur.</strong> Düşmanlardan kaşar, sosis, turşu gibi kumpir malzemeleri düşer. Dükkandaki Kumpir sekmesinde 4 tanesini kumpirine koy; doğru üçlü ya da dörtlüler tarif bonusu verir. İstersen gece tezgahında satıp malzeme kazan.</li>
+          <li><strong>Tohum ek, sonra hasat et.</strong> Bahçe sekmesinden tohum alırsın; birkaç dalga sonra bedava eşya sandığı verir.</li>
+          <li><strong>Silahlarını evrimleştir.</strong> Belirli iki silah ve bir katalizör eşya bir araya gelince Evrim sekmesinden benzersiz bir silah yaparsın.</li>
+          <li><strong>Seviye atla, pişip kumpir ol.</strong> Seviye atladıkça patatesin çiğden haşlanmışa, fırına ve sonunda kumpire dönüşür.</li>
+          <li><strong>Arenalar değişir.</strong> Tarlada çamur yavaşlatır, mutfakta ocak gözleri kızarır ve oklavalar yuvarlanır, pazar yerinde tezgahlar düşman mermilerine siper olur.</li>
+          <li><strong>20. dalgada patron.</strong> Kraliçe Zorg, Gözcü Kroz ya da Yumurta Ana'dan biri gelir. Zaferden sonra istersen sonsuz moda devam edebilirsin.</li>
         </ul>
       </div>
     </section>
@@ -223,9 +383,19 @@
           <span></span>
         </header>
         <div class="settings">
-          <label class="set-row" for="set-volume"><span>Ses düzeyi</span><input type="range" id="set-volume" min="0" max="100" step="5"><output id="set-volume-out">50</output></label>
-          <label class="set-row" for="set-shake"><span>Ekran sarsıntısı</span><input type="checkbox" id="set-shake"></label>
-          <label class="set-row" for="set-dmg"><span>Hasar sayılarını göster</span><input type="checkbox" id="set-dmg"></label>
+          <label class="set-row" for="set-volume"><span>Efekt sesi</span><input type="range" id="set-volume" min="0" max="100" step="5"><output id="set-volume-out">50</output></label>
+          <label class="set-row" for="set-music"><span>Müzik</span><input type="range" id="set-music" min="0" max="100" step="5"><output id="set-music-out">35</output></label>
+          <label class="set-row" for="set-speed"><span>Oyun hızı</span>
+            <select id="set-speed">
+              <option value="0.75">%75</option>
+              <option value="1">%100</option>
+              <option value="1.25">%125</option>
+            </select><span></span></label>
+          <label class="set-row" for="set-easy"><span>Kolay mod <small>Aldığın hasar yarıya iner (yeni koşularda)</small></span><input type="checkbox" id="set-easy"><span></span></label>
+          <label class="set-row" for="set-cb"><span>Renk körü modu <small>Kademe renkleri ayırt etmesi kolay bir paletle gösterilir</small></span><input type="checkbox" id="set-cb"><span></span></label>
+          <label class="set-row" for="set-shake"><span>Ekran sarsıntısı</span><input type="checkbox" id="set-shake"><span></span></label>
+          <label class="set-row" for="set-hitstop"><span>Vuruş donması <small>Kritik ve büyük vuruşlarda çok kısa duraklama</small></span><input type="checkbox" id="set-hitstop"><span></span></label>
+          <label class="set-row" for="set-dmg"><span>Hasar sayılarını göster</span><input type="checkbox" id="set-dmg"><span></span></label>
         </div>
       </div>
     </section>
@@ -238,6 +408,7 @@
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="ach-toasts" class="ach-toasts" aria-live="polite"></div>
 </div>
 
 <script src="js/util.js"></script>
@@ -245,8 +416,13 @@
 <script src="js/audio.js"></script>
 <script src="js/input.js"></script>
 <script src="js/game.js"></script>
+<script src="js/arena.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/art.js"></script>
 <script src="js/render.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/ui-run.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

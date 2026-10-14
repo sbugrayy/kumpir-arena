@@ -69,6 +69,60 @@
     return px * px + py * py <= r * r;
   };
 
+  // Metinden 32 bitlik tohum üretir (günlük meydan okuma için)
+  U.hashStr = function (str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h | 0;
+  };
+
+  // mulberry32: { value, state } döndürür; durum koşu kaydında saklanır
+  U.rngStep = function (state) {
+    const s = (state + 0x6d2b79f5) | 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return { value: ((t ^ (t >>> 14)) >>> 0) / 4294967296, state: s };
+  };
+
+  // Belirli bir rastgele kaynağı (fonksiyon) kullanan yardımcılar
+  U.withRng = function (rnd) {
+    return {
+      next: rnd,
+      int: (a, b) => Math.floor(a + rnd() * (b - a + 1)),
+      pick: (arr) => arr[Math.floor(rnd() * arr.length)],
+      chance: (p) => rnd() < p,
+      shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(rnd() * (i + 1));
+          const t = arr[i];
+          arr[i] = arr[j];
+          arr[j] = t;
+        }
+        return arr;
+      },
+      weighted(entries) {
+        let total = 0;
+        for (const e of entries) total += e.w;
+        let r = rnd() * total;
+        for (const e of entries) {
+          r -= e.w;
+          if (r < 0) return e.v;
+        }
+        return entries[entries.length - 1].v;
+      },
+    };
+  };
+
+  U.todayKey = function () {
+    const d = new Date();
+    const p = (n) => (n < 10 ? '0' : '') + n;
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  };
+
   U.ROMAN = ['', 'I', 'II', 'III', 'IV'];
 
   U.round1 = function (v) {

@@ -20,7 +20,11 @@ html = html.replace(/<script src="(js\/[\w.-]+\.js)"><\/script>/g, (m, src) => {
   return '<script>\n' + code + '\n</script>';
 });
 
-if (/(href|src)="(css|js)\//.test(html)) throw new Error('Satır içine alınmamış yerel dosya kaldı');
+// Tek dosya sürümünde manifest, simgeler ve service worker yok
+html = html.replace(/<link rel="(manifest|icon|apple-touch-icon)"[^>]*>\s*/g, '');
+html = html.replace('<script>\n', '<script>\nwindow.BR_NO_SW = true;\n');
+
+if (/(href|src)="(css|js|icons)\//.test(html) || /manifest\.webmanifest/.test(html)) throw new Error('Satır içine alınmamış yerel dosya kaldı');
 
 const args = process.argv.slice(2);
 const fi = args.indexOf('--fragment');

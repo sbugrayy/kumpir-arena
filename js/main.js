@@ -9,17 +9,24 @@
 
   const M = { manual: false, booted: false, last: 0, acc: 0, errors: 0 };
 
-  BR.settings = { volume: 0.5, shake: true, dmgNumbers: true };
+  BR.settings = { volume: 0.5, music: 0.35, speed: 1, easy: false, colorblind: false, shake: true, hitstop: true, dmgNumbers: true };
 
   function loadSettings() {
     const s = U.store.get(SETTINGS_KEY, null);
+    const st = BR.settings;
     if (s && typeof s === 'object') {
-      if (typeof s.volume === 'number' && s.volume >= 0 && s.volume <= 1) BR.settings.volume = s.volume;
-      if (typeof s.shake === 'boolean') BR.settings.shake = s.shake;
-      if (typeof s.dmgNumbers === 'boolean') BR.settings.dmgNumbers = s.dmgNumbers;
+      if (typeof s.volume === 'number' && s.volume >= 0 && s.volume <= 1) st.volume = s.volume;
+      if (typeof s.music === 'number' && s.music >= 0 && s.music <= 1) st.music = s.music;
+      if ([0.75, 1, 1.25].includes(s.speed)) st.speed = s.speed;
+      ['easy', 'colorblind', 'shake', 'hitstop', 'dmgNumbers'].forEach((k) => {
+        if (typeof s[k] === 'boolean') st[k] = s[k];
+      });
     }
     try {
-      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches && !s) BR.settings.shake = false;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches && !s) {
+        st.shake = false;
+        st.hitstop = false;
+      }
     } catch (e) {
       /* yok say */
     }
@@ -36,14 +43,30 @@
     M.last = ts;
     if (!(dt >= 0)) dt = 0;
     if (dt > 0.1) dt = 0.1;
+    try {
+      BR.Input.pollPads(dt);
+    } catch (e) {
+      M.errors++;
+      console.error(e);
+    }
     if (!M.manual && G.state === 'wave' && !G.paused) {
-      M.acc += dt;
+      // vuruş donması: kısa bir an simülasyon durur, çizim sürer
+      if (G.hitstop > 0) {
+        G.hitstop = Math.max(0, G.hitstop - dt);
+        M.acc = 0;
+      } else {
+        M.acc += dt * (BR.settings.speed || 1);
+      }
       let n = 0;
       try {
         while (M.acc >= STEP && n < 6) {
           G.update(STEP);
           M.acc -= STEP;
           n++;
+          if (G.hitstop > 0) {
+            M.acc = 0;
+            break;
+          }
         }
       } catch (e) {
         M.errors++;
@@ -70,7 +93,9 @@
     if (M.booted) return;
     M.booted = true;
     loadSettings();
+    BR.Meta.load();
     BR.Audio.setVolume(BR.settings.volume);
+    BR.Audio.setMusicVolume(BR.settings.music);
     const canvas = document.getElementById('game');
     BR.Render.init(canvas);
     BR.Input.init(canvas);
@@ -81,6 +106,18 @@
     });
     window.addEventListener('blur', autoPause);
     requestAnimationFrame(loop);
+    registerSW();
+  }
+
+  // Çevrimdışı oynamak için (yalnızca http/https altında, gömülü tek dosya sürümünde kapalı)
+  function registerSW() {
+    try {
+      if (window.BR_NO_SW || !('serviceWorker' in navigator)) return;
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    } catch (e) {
+      /* yok say */
+    }
   }
 
   BR.Main = M;

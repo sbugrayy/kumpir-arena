@@ -1,0 +1,13 @@
+{
+  "name": "kumpir-arena",
+  "version": "1.0.0",
+  "description": "Brotato'dan esinlenen, saf HTML/CSS/JavaScript ile yazılmış arena hayatta kalma oyunu",
+  "private": true,
+  "scripts": {
+    "start": "node server.js --open",
+    "serve": "node server.js",
+    "build": "node tools/build-single.js",
+    "test": "node tests/e2e.js"
+  },
+  "license": "MIT"
+}

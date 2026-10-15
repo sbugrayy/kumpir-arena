@@ -1584,18 +1584,145 @@ html.touch .skill {
 }
 
 /* ---------- Gece tezgahı ---------- */
+/* Tek sütun: sipariş, tabak, kiler, düğmeler. Kiler sabit 8 satırlık liste: masaüstünde 4×2
+   (1 2 3 4 / 5 6 7 8, klavyedeki rakam sırası), telefonda 2×4. Adet değişince pencere boyu değişmez. */
 .stand-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 270px;
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-areas:
+    'cust plate'
+    'pantry pantry'
+    'actions actions';
+  gap: 14px;
 }
 
-.stand-main {
+.stand-body > .customer {
+  grid-area: cust;
+}
+
+.stand-body > .plate-wrap {
+  grid-area: plate;
+}
+
+.stand-body > .stand-pantry {
+  grid-area: pantry;
+}
+
+.stand-body > .stand-actions {
+  grid-area: actions;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
+}
+
+.stand-pantry .inv-head {
+  margin-bottom: 8px;
+}
+
+.stand-pantry .inv-head h3 {
+  margin-bottom: 0;
+}
+
+.pantry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.stand-pantry {
+  display: flex;
+  flex-direction: column;
+}
+
+.stand-earned {
+  margin-top: 8px;
+}
+
+.pantry-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 4px 10px 4px 6px;
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.pantry-row .key {
+  min-width: 22px;
+  padding: 0 4px;
+  font-size: 12px;
+  border-width: 1px;
+  border-bottom-width: 3px;
+  flex: none;
+}
+
+.pantry-row .ico-top {
+  flex: none;
+}
+
+.pr-name {
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-count {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.pantry-row.need {
+  border-color: var(--good);
+}
+
+.pantry-row.need .pr-count {
+  color: var(--good);
+}
+
+.pantry-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pantry-row.empty {
+  opacity: 0.35;
+}
+
+.pantry-row:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .pantry-row:hover:not(:disabled) {
+    border-color: var(--gold);
+  }
+}
+
+.stand-keys {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 2;
+}
+
+.stand-keys kbd {
+  font-size: 11px;
 }
 
 .customer {
@@ -1654,7 +1781,6 @@ html.touch .skill {
 }
 
 .stand-earned {
-  margin-top: 12px;
   font-weight: 800;
   color: var(--good);
 }
@@ -1859,6 +1985,10 @@ html.touch .skill {
 
 .evo-needs .miss {
   color: var(--muted);
+}
+
+.evo-needs .part {
+  color: var(--gold);
 }
 
 /* ---------- Rota haritası ---------- */
@@ -2226,9 +2356,17 @@ html.touch .skill {
 
 /* ---------- Dar ekranlar ---------- */
 @media (max-width: 880px) {
-  .panel-wrap.with-side,
+  .panel-wrap.with-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .stand-body {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'cust'
+      'plate'
+      'pantry'
+      'actions';
   }
 
   .boss-bar {
@@ -2371,6 +2509,14 @@ html.touch .seg-btn {
   min-height: 44px;
 }
 
+html.touch .pantry-row {
+  min-height: 44px;
+}
+
+html.touch .pantry-row .key {
+  display: none;
+}
+
 /* Dokunmatikte takılı kalan hover izlerini kaldır, basınca kısa geri bildirim ver */
 @media (hover: none) {
   button.card:hover {
@@ -2448,6 +2594,10 @@ html.touch .seg-btn {
 
   .stand .row-actions.left {
     display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pantry-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2662,6 +2812,19 @@ html.boss-on .toast {
 
   .card {
     padding: 10px;
+  }
+
+  /* alçak ekranda sipariş ile tabak yan yana, kiler 4 sütunlu iki satır */
+  .stand-body {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-areas:
+      'cust plate'
+      'pantry pantry'
+      'actions actions';
+  }
+
+  .pantry-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

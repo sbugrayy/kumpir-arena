@@ -346,18 +346,34 @@ async function main() {
       return cust.order.slice();
     });
     await ev(() => BR.UI.renderStand());
-    for (const id of served) {
-      await ev((id) => {
-        const btns = Array.from(document.querySelectorAll('#stand-pantry .top-btn'));
-        const name = BR.DATA.TOPPING_BY_ID[id].name;
-        const b = btns.find((x) => x.textContent.startsWith(name));
-        b.click();
-      }, id);
-    }
+    const standInfo = await ev(() => {
+      const rows = Array.from(document.querySelectorAll('#stand-pantry .pantry-row'));
+      const order = BR.Game.standCurrent().order;
+      return {
+        rows: rows.length,
+        sameOrder: rows.map((r) => r.dataset.id).join(',') === BR.DATA.TOPPINGS.map((t) => t.id).join(','),
+        keys: rows.map((r) => r.querySelector('.key').textContent).join(''),
+        need: rows.filter((r) => r.classList.contains('need')).map((r) => r.dataset.id).sort().join(','),
+        want: Array.from(new Set(order)).sort().join(','),
+        emptyOk: rows.filter((r) => !(BR.Game.run.pantry[r.dataset.id] > 0)).every((r) => r.disabled && r.classList.contains('empty')),
+        h: Math.round(document.querySelector('#scr-stand .panel-wrap').getBoundingClientRect().height),
+      };
+    });
+    check('kiler her zaman aynı sırada 8 satırlık liste (1–8)', standInfo.rows === 8 && standInfo.sameOrder && standInfo.keys === '12345678', standInfo);
+    check('siparişteki malzemeler kilerde işaretli, olmayanlar pasif', standInfo.need === standInfo.want && standInfo.emptyOk, standInfo);
+    const tops = await ev(() => BR.DATA.TOPPINGS.map((t) => t.id));
+    for (const id of served) await page.keyboard.press('Digit' + (tops.indexOf(id) + 1));
+    check('1–8 tuşlarıyla sipariş tabağa kondu', (await ev(() => BR.Game.run.stand.plate.join(','))) === served.join(','));
     check('tabağa sipariş kadar malzeme kondu', (await page.locator('#stand-plate .top-chip').count()) === served.length);
+    const standH2 = await ev(() => Math.round(document.querySelector('#scr-stand .panel-wrap').getBoundingClientRect().height));
+    check('malzeme eklenince tezgah penceresi uzamaz', Math.abs(standH2 - standInfo.h) <= 1, { before: standInfo.h, after: standH2 });
+    await page.keyboard.press('Backspace');
+    check('Backspace son malzemeyi geri alır', (await ev(() => BR.Game.run.stand.plate.length)) === served.length - 1);
+    await page.keyboard.press('Numpad' + (tops.indexOf(served[served.length - 1]) + 1));
     const matsBeforeServe = await ev(() => BR.Game.run.materials);
-    await page.click('#stand-serve');
-    check('doğru sipariş servis edilince malzeme kazanılır', (await ev(() => BR.Game.run.materials)) > matsBeforeServe);
+    await page.focus('#stand-pantry .pantry-row:not([disabled])');
+    await page.keyboard.press('Enter');
+    check('Enter servis eder (odak kiler satırındayken bile tek işlem)', await ev((m) => BR.Game.run.materials > m && BR.Game.run.stand.served === 1 && BR.Game.run.stand.plate.length === 0, matsBeforeServe));
     await page.click('#stand-close');
     check('tezgah kapanınca dükkan açılır', await visible('#scr-shop'));
     check('dükkanda 4 teklif', (await page.locator('#shop-offers .card').count()) === 4);
@@ -382,7 +398,7 @@ async function main() {
     await page.click('#pane-garden .seed-grid .btn-buy >> nth=0');
     check('Bahçe: tohum ekildi', await ev(() => BR.Game.run.seeds.length === 1 && BR.Game.run.seeds[0].id === 'sprout'));
     check('faiz bilgisi gösteriliyor', /Faiz/.test(await page.textContent('#pane-garden .interest')));
-    // Evrim sekmesi
+    // Evrim sekmesi: iki silah da en az III. kademede olmalı
     await ev(() => {
       const G = BR.Game;
       G.run.weapons = [{ id: 'pistol', tier: 2, target: 'near' }, { id: 'smg', tier: 1, target: 'near' }];
@@ -391,7 +407,20 @@ async function main() {
     });
     await page.click('#tab-evo');
     check('Evrim sekmesinde 6 tarif', (await page.locator('#pane-evo .evo').count()) === 6);
-    check('hazır evrim vurgulanıyor', (await page.locator('#pane-evo .evo.ready').count()) === 1);
+    const lowEvo = await ev(() => ({
+      ready: document.querySelectorAll('#pane-evo .evo.ready').length,
+      first: document.querySelector('#pane-evo .evo .card-name').textContent,
+      part: Array.from(document.querySelectorAll('#pane-evo .evo-needs .part')).map((li) => li.textContent).join(' | '),
+    }));
+    check('III. kademenin altındaki silahlarla evrim hazır olmaz; eksik kademe yazılır', lowEvo.ready === 0 && /sende II, en az III/.test(lowEvo.part) && /sende I, en az III/.test(lowEvo.part), lowEvo);
+    check('en çok ilerlenen tarif listede önde', lowEvo.first === 'Gatling', lowEvo);
+    await ev(() => {
+      const G = BR.Game;
+      G.run.weapons = [{ id: 'pistol', tier: 3, target: 'near' }, { id: 'smg', tier: 4, target: 'near' }];
+      G.refresh();
+      BR.UI.renderShop();
+    });
+    check('iki silah III+ ve katalizör varsa evrim hazır', (await page.locator('#pane-evo .evo.ready').count()) === 1);
     await shot('09-evo');
     await page.click('#pane-evo .evo.ready .btn-primary');
     check('Tabanca + Makineli Tüfek + Mermi Kutusu → Gatling', await ev(() => {
@@ -765,14 +794,20 @@ async function main() {
       const out = {};
       D.EVOLUTIONS.forEach((e) => {
         __t.start({ weaponId: e.a });
-        G.run.weapons.push({ id: e.b, tier: 1, target: 'near' });
-        const notReady = !G.evoStatus().find((x) => x.id === e.id).ready;
+        G.run.weapons = [{ id: e.a, tier: 3, target: 'near' }, { id: e.b, tier: 3, target: 'near' }];
+        const noItem = !G.evoStatus().find((x) => x.id === e.id).ready;
         G.addItem(G.run, e.item);
         G.refresh();
+        G.run.weapons[1].tier = 2;
+        const lowTier = !G.evoStatus().find((x) => x.id === e.id).ready && !G.evolve(e.id);
+        // düşük kademeli bir kopya daha olsa da III+ olan alınır
+        G.run.weapons[1].tier = 3;
+        G.run.weapons.push({ id: e.a, tier: 1, target: 'near' });
         const ready = G.evoStatus().find((x) => x.id === e.id).ready;
         const ok = G.evolve(e.id);
-        const ws = G.run.weapons.map((x) => x.id);
-        out[e.id] = notReady && ready && ok && ws.length === 1 && ws[0] === e.id && G.run.items[e.item] === 1;
+        const ws = G.run.weapons.map((x) => x.id + x.tier).sort().join(',');
+        out[e.id] = noItem && lowTier && ready && ok && ws === [e.a + '1', e.id + '4'].sort().join(',') && G.run.items[e.item] === 1;
+        G.run.weapons = G.run.weapons.filter((x) => x.id === e.id);
         // evrim silahı dalgada sorunsuz çalışır (yakına bir düşman koy ki yakın dövüş silahı da vursun)
         G.run.wave = 4;
         G.startNextWave();
@@ -794,7 +829,57 @@ async function main() {
       __t.stop();
       return { out, shopEvo };
     });
-    check('6 evrim tarifinin hepsi çalışır ve evrim silahları savaşır', Object.values(evo.out).every(Boolean), evo);
+    check('6 evrimin hepsi: katalizör ve III. kademe şartı aranır, III+ kopyalar harcanır, evrim silahı savaşır', Object.values(evo.out).every(Boolean), evo);
+    const smart = await ev(() => {
+      const G = BR.Game;
+      const D = BR.DATA;
+      const rate = (weapons, items) => {
+        let hit = 0;
+        let n = 0;
+        D.EVOLUTIONS.forEach((ev) => {
+          for (let k = 0; k < 25; k++) {
+            __t.start({});
+            G.run.weapons = weapons(ev).map((id) => ({ id, tier: 1, target: 'near' }));
+            G.run.items = items(ev);
+            G.refresh();
+            for (const wv of [4, 9, 14]) {
+              G.run.wave = wv;
+              G.run.shopFor = -1;
+              G.enterShop();
+              n++;
+              if (G.run.shop.some((o) => o.kind === 'item' && o.id === ev.item)) hit++;
+            }
+          }
+        });
+        return hit / n;
+      };
+      const out = {
+        both: rate((ev) => [ev.a, ev.b], () => ({})),
+        one: rate((ev) => [ev.b], () => ({})),
+        none: rate(() => [], () => ({})),
+        owned: rate((ev) => [ev.a, ev.b], (ev) => ({ [ev.item]: 1 })),
+      };
+      // kilitli teklifler asla değiştirilmez
+      __t.start({});
+      G.run.weapons = [{ id: 'fist', tier: 1, target: 'near' }, { id: 'hammer', tier: 1, target: 'near' }];
+      G.refresh();
+      G.run.wave = 6;
+      G.run.shopFor = -1;
+      G.enterShop();
+      G.run.shop = G.run.shop.map(() => ({ kind: 'item', id: 'helmet', tier: 1, locked: true }));
+      G.run.materials = 999;
+      let lockedKept = true;
+      for (let i = 0; i < 20; i++) {
+        G.reroll();
+        if (!G.run.shop.every((o) => o.id === 'helmet' && o.locked)) lockedKept = false;
+      }
+      out.lockedKept = lockedKept;
+      __t.stop();
+      return out;
+    });
+    check('akıllı dükkan: iki evrim silahı sendeyse katalizör çoğu dükkanda çıkar', smart.both >= 0.55, smart);
+    check('akıllı dükkan: tek silah sendeyse daha seyrek, hiçbiri yoksa nadiren çıkar', smart.one >= 0.15 && smart.one < smart.both && smart.none <= 0.12, smart);
+    check('akıllı dükkan: katalizör sendeyse fazladan önerilmez, kilitli teklifler değişmez', smart.owned <= 0.12 && smart.lockedKept, smart);
     check('evrim silahları dükkanda çıkmaz', !evo.shopEvo, evo);
 
     /* ============================================================ */
@@ -2015,6 +2100,17 @@ async function main() {
       });
       await mp.waitForTimeout(150);
       note('stand', await fit('stand'));
+      const standLay = await mp.evaluate(() => {
+        const list = document.getElementById('stand-pantry');
+        return {
+          rows: list.querySelectorAll('.pantry-row').length,
+          cols: getComputedStyle(list).gridTemplateColumns.split(' ').length,
+          before: list.getBoundingClientRect().bottom <= document.querySelector('.stand-actions').getBoundingClientRect().top + 1,
+          keyHidden: getComputedStyle(list.querySelector('.key')).display === 'none',
+        };
+      });
+      const wantCols = d.w <= 560 ? 2 : 4;
+      check(tag + 'tezgah kileri ' + wantCols + ' sütunlu sabit liste, düğmelerin üstünde, tuş etiketi gizli', standLay.rows === 8 && standLay.cols === wantCols && standLay.before && standLay.keyHidden, standLay);
       await mp.evaluate(() => document.getElementById('stand-close').click());
       await mp.waitForTimeout(200);
       note('shop', await fit('shop'));

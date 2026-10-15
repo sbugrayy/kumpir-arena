@@ -33,3 +33,7 @@
 - [x] **26. Mobil oynanış** — Dokunmatik cihazlarda daha yakın kamera, ekran dışındaki düşmanlar ve patron için kenar okları, ilk dalgada joystick ipucu, dikey tutuşta yan çevirme önerisi.
 - [x] **27. Tam ekran ve titreşim** — Destekleyen tarayıcılarda tam ekran düğmesi; hasar alınca kısa titreşim (ayardan kapatılabilir); iOS'ta ana ekrana eklenince uygulama gibi açılma.
 - [x] **28. Mobil testler** — Beş cihaz boyutunda taşma, çakışma, dokunma hedefi, yapışkan düğme, kamera, kenar oku, titreşim ve tam ekran testleri.
+
+## Müzik
+
+- [x] **29. Seçilen arka plan müzikleri** — Dinleme sayfasında seçilen parçalar oyuna eklendi: Menü *Arcade Tema*, Dükkan *Pazar Funk*, Dalga *Synthwave Aksiyon*, Patron *Karanlık Synth*. Her biri 8 ölçüye (A + B bölümü) uzatıldı; dalga yoğunluğuna göre katmanlar, patronun canına göre sertleşme, yumuşak parça geçişleri, duraklatınca boğuk ses. Ses seviyesi çevrimdışı ölçümle eski müziğe göre dengelendi.

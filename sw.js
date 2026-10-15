@@ -3,7 +3,7 @@
    ağ yoksa önbellekteki sürüm açılır. Dosya listesi değişince CACHE adını artır. */
 'use strict';
 
-const CACHE = 'kumpir-arena-v2';
+const CACHE = 'kumpir-arena-v3';
 const FILES = [
   './',
   'index.html',

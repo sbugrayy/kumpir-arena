@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kumpir Arena</title>
 <meta name="theme-color" content="#1a1511">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kumpir Arena">
 <meta name="description" content="Brotato'dan esinlenen, tarayıcıda oynanan arena hayatta kalma oyunu.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -64,9 +68,14 @@
             <button class="btn" id="btn-ach" type="button">Başarımlar</button>
             <button class="btn" id="btn-help" type="button">Nasıl Oynanır</button>
           </div>
-          <button class="btn" id="btn-settings" type="button">Ayarlar</button>
+          <div class="menu-row">
+            <button class="btn" id="btn-settings" type="button">Ayarlar</button>
+            <button class="btn" id="btn-fullscreen" type="button" hidden>Tam Ekran</button>
+          </div>
         </div>
-        <p class="menu-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hareket · <kbd>Boşluk</kbd> atıl · <kbd>E</kbd> yetenek · <kbd>Esc</kbd> duraklat · gamepad desteklenir</p>
+        <p class="menu-keys kbd-hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hareket · <kbd>Boşluk</kbd> atıl · <kbd>E</kbd> yetenek · <kbd>Esc</kbd> duraklat · gamepad desteklenir</p>
+        <p class="menu-keys touch-hint">Parmağını sürükleyerek yürü · sağ alttaki düğmelerle atıl ve yeteneğini kullan</p>
+        <p class="rotate-hint">İpucu: telefonu yan çevirirsen arenayı daha geniş görürsün.</p>
         <p class="credit">Brotato oyunundan esinlenen, hayran yapımı bir klon.</p>
       </div>
     </section>
@@ -282,6 +291,7 @@
             <button class="btn btn-primary btn-big" id="pause-resume" type="button">Devam Et</button>
             <button class="btn" id="pause-settings" type="button">Ayarlar</button>
             <button class="btn" id="pause-help" type="button">Nasıl Oynanır</button>
+            <button class="btn" id="pause-fullscreen" type="button" hidden>Tam Ekran</button>
             <button class="btn btn-danger" id="pause-quit" type="button">Ana Menüye Dön</button>
           </div>
           <p class="note" id="pause-info"></p>
@@ -360,7 +370,7 @@
         </header>
         <ul class="help-list">
           <li><strong>Hareket et, gerisini silahlar halleder.</strong> WASD ya da ok tuşlarıyla yürü. Silahların menzile giren düşmana kendiliğinden saldırır. Dokunmatik ekranda parmağını sürükle.</li>
-          <li><strong>Atıl ve yeteneğini kullan.</strong> Boşluk ya da Shift ile kısa bir atılma yaparsın; atılırken hasar almazsın. E ya da Q her karakterin kendine özgü yeteneğini kullanır.</li>
+          <li><strong>Atıl ve yeteneğini kullan.</strong> Boşluk ya da Shift ile kısa bir atılma yaparsın; atılırken hasar almazsın. E ya da Q her karakterin kendine özgü yeteneğini kullanır. Dokunmatik ekranda sağ alttaki iki düğmeyi kullan.</li>
           <li><strong>Hedef seç.</strong> Dükkanda ya da duraklatınca silahına tıklayıp "en yakın", "en güçlü" ya da "en az canlı" düşmana nişan almasını sağla.</li>
           <li><strong>Rotanı çiz.</strong> Her dalgadan sonra haritada sıradaki durağı seçersin: normal dalga, elit dalga, olay ya da dinlenme. Bazı duraklar sis, kalabalık, altın yağmuru gibi risk ve ödül getiren değiştiriciler taşır.</li>
           <li><strong>Malzeme topla, faiz kazan.</strong> Yeşil malzemeler hem para hem deneyimdir. Dalga sonunda elinde tuttuğun her 10 malzeme için 1 faiz alırsın (en fazla 10).</li>
@@ -396,6 +406,7 @@
           <label class="set-row" for="set-shake"><span>Ekran sarsıntısı</span><input type="checkbox" id="set-shake"><span></span></label>
           <label class="set-row" for="set-hitstop"><span>Vuruş donması <small>Kritik ve büyük vuruşlarda çok kısa duraklama</small></span><input type="checkbox" id="set-hitstop"><span></span></label>
           <label class="set-row" for="set-dmg"><span>Hasar sayılarını göster</span><input type="checkbox" id="set-dmg"><span></span></label>
+          <label class="set-row" for="set-vibrate" id="set-vibrate-row" hidden><span>Titreşim <small>Hasar alınca telefon kısaca titrer</small></span><input type="checkbox" id="set-vibrate"><span></span></label>
         </div>
       </div>
     </section>

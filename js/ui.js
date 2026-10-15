@@ -426,6 +426,10 @@
     $('screens').classList.toggle('active', !!name);
     UI.current = name;
     $('hud').hidden = G.state !== 'wave';
+    if (G.state !== 'wave') {
+      $('boss-bar').hidden = true;
+      document.documentElement.classList.remove('boss-on');
+    }
     closeModal();
     if (name) {
       $('scr-' + name).scrollTop = 0;
@@ -550,7 +554,9 @@
     const ch = D.CHAR_BY_ID[G.run.charId];
     $('pause-sub').textContent = 'Dalga ' + G.w.n + ' · ' + ch.name + (G.run.coop ? ' · iki kişi' : '');
     const ab = D.ABILITIES[ch.ability];
-    $('pause-info').textContent = 'Yetenek: ' + ab.name + ' (' + ab.desc + ') · Atılma: Boşluk/Shift · Yetenek: E/Q' + (G.run.coop ? ' · 2. oyuncu: Enter ve Sağ Shift' : '');
+    const keys = BR.Input.sawTouch && !G.run.coop ? ' · Atılma ve yetenek: sağ alttaki düğmeler' : ' · Atılma: Boşluk/Shift · Yetenek: E/Q';
+    $('pause-info').textContent = 'Yetenek: ' + ab.name + ' (' + ab.desc + ')' + keys + (G.run.coop ? ' · 2. oyuncu: Enter ve Sağ Shift' : '');
+    syncFullscreen();
     renderWeaponSlots($('pause-weapons'), 'pause');
     renderItems($('pause-items'));
     renderStats($('pause-stats'));
@@ -750,7 +756,10 @@
     }
     const bb = $('boss-bar');
     if (d.boss) {
-      if (bb.hidden) bb.hidden = false;
+      if (bb.hidden) {
+        bb.hidden = false;
+        document.documentElement.classList.add('boss-on');
+      }
       const name = d.boss.name + (d.boss.affixes.length ? ' · ' + d.boss.affixes.join(' · ') : '');
       if (c.bossName !== name) {
         c.bossName = name;
@@ -759,6 +768,7 @@
       $('boss-fill').style.transform = 'scaleX(' + d.boss.frac.toFixed(3) + ')';
     } else if (!bb.hidden) {
       bb.hidden = true;
+      document.documentElement.classList.remove('boss-on');
       c.bossName = null;
     }
     if (G.w) BR.Audio.setIntensity(G.w.t / G.w.duration);
@@ -781,6 +791,51 @@
     $('set-shake').checked = !!st.shake;
     $('set-hitstop').checked = !!st.hitstop;
     $('set-dmg').checked = !!st.dmgNumbers;
+    $('set-vibrate').checked = !!st.vibrate;
+    $('set-vibrate-row').hidden = !canVibrate();
+  }
+
+  function canVibrate() {
+    return typeof navigator.vibrate === 'function' && !!BR.Input.sawTouch;
+  }
+
+  /* ================= Tam ekran ================= */
+  function fsElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || null;
+  }
+
+  function fsSupported() {
+    const el = document.documentElement;
+    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) && !!(el.requestFullscreen || el.webkitRequestFullscreen);
+  }
+
+  function syncFullscreen() {
+    const sup = fsSupported();
+    const on = !!fsElement();
+    ['btn-fullscreen', 'pause-fullscreen'].forEach((id) => {
+      const b = $(id);
+      b.hidden = !sup;
+      b.textContent = on ? 'Tam Ekrandan Çık' : 'Tam Ekran';
+    });
+  }
+  UI.syncFullscreen = syncFullscreen;
+
+  function toggleFullscreen() {
+    const fail = () => toast('Bu tarayıcı tam ekrana izin vermedi');
+    try {
+      if (fsElement()) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        const r = exit.call(document);
+        if (r && r.catch) r.catch(() => {});
+      } else {
+        const el = document.documentElement;
+        const req = el.requestFullscreen || el.webkitRequestFullscreen;
+        const r = req.call(el, { navigationUI: 'hide' });
+        if (r && r.catch) r.catch(fail);
+      }
+    } catch (e) {
+      fail();
+    }
   }
 
   UI.applyColorblind = function () {
@@ -988,6 +1043,16 @@
       BR.settings.dmgNumbers = e.target.checked;
       save();
     });
+    $('set-vibrate').addEventListener('change', (e) => {
+      BR.settings.vibrate = e.target.checked;
+      save();
+      if (e.target.checked) BR.haptic(40);
+    });
+    $('btn-fullscreen').addEventListener('click', toggleFullscreen);
+    $('pause-fullscreen').addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    document.addEventListener('webkitfullscreenchange', syncFullscreen);
+    syncFullscreen();
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape' || (e.code === 'KeyP' && G.state === 'wave')) {

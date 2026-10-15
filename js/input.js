@@ -29,6 +29,7 @@
     onPause: null,
     sawTouch: false,
     sawPad: false,
+    joyUsed: false, // dokunmatik joystick bu oturumda kullanıldı mı (ipucu için)
   };
 
   function codeOf(e) {
@@ -55,6 +56,21 @@
   };
 
   I.init = function (canvas) {
+    // Dokunmatik cihazı baştan tanı: menüler ve HUD buna göre uyarlanır
+    try {
+      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) I.markTouch();
+    } catch (e) {
+      /* yok say */
+    }
+    document.addEventListener(
+      'pointerdown',
+      (e) => {
+        if (e.pointerType === 'touch') I.markTouch();
+      },
+      true
+    );
+    // uzun basınca açılan bağlam menüsü oyunu bölmesin
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('keydown', (e) => {
       const code = codeOf(e);
       if (!code) return;
@@ -79,6 +95,7 @@
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       if (I.touch.active) return;
       I.touch.active = true;
+      I.joyUsed = true;
       I.touch.id = e.pointerId;
       I.touch.bx = I.touch.x = e.clientX;
       I.touch.by = I.touch.y = e.clientY;

@@ -1600,6 +1600,57 @@ async function main() {
     check('müzik ekranlara göre değişir (menü/dalga)', music.menu === 'menu' && music.wave === 'wave' && music.tracks, music);
     check('duraklatınca müzik kısılır, devamda açılır', music.duck && music.unduck, music);
     check('ses motoru çalışıyor', music.ctx, music);
+    const tracks = await ev(async () => {
+      const A = BR.Audio;
+      const out = {};
+      for (const name of ['menu', 'shop', 'wave', 'boss']) {
+        const r = await A.renderTrack(name, 10, 0.5);
+        out[name] = { rms: +r.rms.toFixed(4), peak: +r.peak.toFixed(3), errors: r.errors, name: A.TRACKS[name].name };
+      }
+      const w0 = await A.renderTrack('wave', 10, 0);
+      const w1 = await A.renderTrack('wave', 10, 1);
+      out.layer = +(w1.rms / w0.rms).toFixed(3);
+      return out;
+    });
+    const names = ['menu', 'shop', 'wave', 'boss'].map((k) => tracks[k].name).join(', ');
+    check('seçilen 4 parça (' + names + ') hatasız çalar, duyulur ve patlamaz', ['menu', 'shop', 'wave', 'boss'].every((k) => tracks[k].errors === 0 && tracks[k].rms > 0.02 && tracks[k].peak < 0.95), tracks);
+    check('seçilen parçalar: Arcade Tema, Pazar Funk, Synthwave Aksiyon, Karanlık Synth', names === 'Arcade Tema, Pazar Funk, Synthwave Aksiyon, Karanlık Synth', names);
+    check('dalga ilerledikçe müziğe katman eklenir', tracks.layer > 1.05, tracks);
+    const live = await ev(async () => {
+      const A = BR.Audio;
+      const G = BR.Game;
+      G.w.players[0].invuln = 999;
+      BR.UI.updateMusic(); // önceki testin bıraktığı parçayı oyunun durumuna eşitle
+      const s0 = A.step;
+      await new Promise((r) => setTimeout(r, 400));
+      const advancing = A.track === 'wave' && A.step !== s0 && !!A.nodes;
+      BR.UI.pause();
+      await new Promise((r) => setTimeout(r, 400));
+      const muffled = A.musicFilt.frequency.value < 3000;
+      document.getElementById('pause-resume').click();
+      await new Promise((r) => setTimeout(r, 400));
+      const clear = A.musicFilt.frequency.value > 10000;
+      // patron: canı azaldıkça müzik sertleşir
+      G.run.wave = 19;
+      G.run.node = { type: 'boss', mod: null };
+      G.startNextWave();
+      G.w.players.forEach((p) => (p.invuln = 999));
+      const boss = G.X.spawnEnemy('boss', G.w.players[0].x + 400, G.w.players[0].y);
+      boss.hp = boss.maxHp * 0.3;
+      await new Promise((r) => setTimeout(r, 300));
+      const bossTrack = A.track;
+      const bossInt = A.intensity;
+      // hızlı parça değişimleri hata vermez
+      ['menu', 'shop', 'wave', 'boss', 'shop'].forEach((t) => A.music(t));
+      await new Promise((r) => setTimeout(r, 300));
+      return { advancing, muffled, clear, bossTrack, bossInt, final: A.track, errors: A.errors || 0 };
+    });
+    check('dalga müziği canlı çalıyor', live.advancing, live);
+    check('duraklatınca müzik boğuklaşır, devam edince açılır', live.muffled && live.clear, live);
+    check('patron müziği patronun canı azaldıkça sertleşir', live.bossTrack === 'boss' && live.bossInt >= 0.69, live);
+    check('parça geçişleri hatasız', live.final === 'shop' && live.errors === 0, live);
+    await ev(() => BR.UI.showMenu());
+    await ev(() => BR.UI.startRun({ charId: 'allround', weaponId: 'pistol', danger: 0 }));
     const hs = await ev(async () => {
       const G = BR.Game;
       G.w.players[0].invuln = 999;

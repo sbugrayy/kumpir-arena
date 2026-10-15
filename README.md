@@ -82,7 +82,7 @@ Silahlar menzile giren düşmana **kendiliğinden** saldırır. Silahına tıkla
 - **Sonsuz mod:** zaferden sonra devam et; her 5 dalgada elit, her 10 dalgada patron
 - **4 tehlike seviyesi** ve **kolay mod** (alınan hasar yarıya iner)
 - **Erişilebilirlik:** renk körü paleti (kademeler ayrıca şekille de gösterilir), oyun hızı (%75 / %100 / %125), ekran sarsıntısı ve vuruş donması kapatılabilir
-- **Müzik:** menü, dükkan, dalga ve patron için ayrı, kodla üretilen parçalar; büyük vuruşlarda kısa vuruş donması
+- **Müzik:** kodla üretilen dört parça: menüde *Arcade Tema*, dükkanda *Pazar Funk*, dalgada *Synthwave Aksiyon*, patronda *Karanlık Synth*. Dalga ilerledikçe katmanlar eklenir, son saniyelerde tempo hafifçe artar; patron müziği patronun canı azaldıkça sertleşir; duraklatınca müzik kısılıp boğuklaşır. Büyük vuruşlarda kısa vuruş donması vardır.
 - Otomatik kayıt: dalga aralarında (dükkan, harita, olay, dinlenme dahil) kaydedilir, menüden **Devam Et** ile sürdürülür. Eski sürümün kayıtları otomatik yükseltilir.
 
 ## Proje yapısı

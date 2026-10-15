@@ -771,7 +771,12 @@
       document.documentElement.classList.remove('boss-on');
       c.bossName = null;
     }
-    if (G.w) BR.Audio.setIntensity(G.w.t / G.w.duration);
+    // müzik yoğunluğu: dalga ilerledikçe artar; patron savaşında patronun kaybettiği canla da yükselir
+    if (G.w) {
+      let inten = G.w.t / G.w.duration;
+      if (d.boss) inten = Math.max(inten, 1 - d.boss.frac);
+      BR.Audio.setIntensity(inten);
+    }
   }
 
   UI.frame = function () {

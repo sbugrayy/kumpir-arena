@@ -24,3 +24,12 @@
 - [x] **20. Müzik ve vuruş donması** — Menü, dükkan, dalga ve patron parçaları; kritik ve büyük vuruşlarda kısa donma (kapatılabilir).
 - [x] **21. PWA ve GitHub Pages** — Manifest, simgeler, çevrimdışı önbellek; `.nojekyll` ile doğrudan GitHub Pages'te yayınlanabilir (adımlar README'de).
 - [x] **22. Testler, denge simülasyonları, yayın** — Uçtan uca test paketi, test botu ve `npm run balance` denge simülasyonu; tehlike 2 ve 3 bu simülasyonlara göre sertleştirildi.
+
+## Mobil uyum
+
+- [x] **23. Mobil denetim** — 320×568'den 768×1024'e beş cihaz boyutunda, dikey ve yatay tüm ekranlar ölçüldü; sorunlar listelendi.
+- [x] **24. Dokunmatik algılama** — Dokunmatik cihaz açılışta tanınır; menü, yardım ve duraklatmada dokunmatik kontroller anlatılır, klavye ipuçları gizlenir.
+- [x] **25. Duyarlı düzen** — Çentik güvenli alanları, alçak yatay ekranlar için sıkı düzen, telefonda 2 sütunlu seviye ve tehlike kartları, kaydırırken hep görünen "Haritaya Git", yetenek düğmeleriyle çakışmayan bildirimler, dar ekranda çakışmayan harita etiketleri, dokunmatikte hover izi bırakmayan kartlar, çift dokunma yakınlaştırmasının ve uzun basma menüsünün engellenmesi.
+- [x] **26. Mobil oynanış** — Dokunmatik cihazlarda daha yakın kamera, ekran dışındaki düşmanlar ve patron için kenar okları, ilk dalgada joystick ipucu, dikey tutuşta yan çevirme önerisi.
+- [x] **27. Tam ekran ve titreşim** — Destekleyen tarayıcılarda tam ekran düğmesi; hasar alınca kısa titreşim (ayardan kapatılabilir); iOS'ta ana ekrana eklenince uygulama gibi açılma.
+- [x] **28. Mobil testler** — Beş cihaz boyutunda taşma, çakışma, dokunma hedefi, yapışkan düğme, kamera, kenar oku, titreşim ve tam ekran testleri.

@@ -101,6 +101,61 @@ window.__t = {
 };
 `;
 
+// Mobil düzen ölçümleri (sayfa içinde)
+const MOB = `
+window.__mob = {
+  // ekran taşıyor mu, küçük ya da ekran dışında kalan dokunma hedefi var mı
+  fits(id) {
+    const s = id ? document.getElementById('scr-' + id) : null;
+    if (s && s.hidden) return 'ekran gizli';
+    if (document.documentElement.scrollWidth > window.innerWidth + 1) return 'sayfa yatay taşıyor';
+    if (s && s.scrollWidth > s.clientWidth + 1) return 'ekran yatay taşıyor';
+    const bad = Array.from((s || document).querySelectorAll('button, select'))
+      .filter((b) => b.offsetParent !== null)
+      .filter((b) => {
+        const r = b.getBoundingClientRect();
+        if (!r.width) return false;
+        return r.height < 40 || r.width < 40 || r.right > window.innerWidth + 1 || r.left < -1;
+      })
+      .map((b) => (b.id || b.className) + ' ' + Math.round(b.getBoundingClientRect().width) + 'x' + Math.round(b.getBoundingClientRect().height));
+    return bad.length ? bad.join(', ') : 'ok';
+  },
+  overlaps(sels) {
+    const rs = sels
+      .map((s) => {
+        const e = document.querySelector(s);
+        if (!e || e.hidden || e.closest('[hidden]')) return null;
+        const r = e.getBoundingClientRect();
+        return r.width && r.height ? { s, r } : null;
+      })
+      .filter(Boolean);
+    const out = [];
+    for (let i = 0; i < rs.length; i++)
+      for (let j = i + 1; j < rs.length; j++) {
+        const a = rs[i].r;
+        const b = rs[j].r;
+        if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) out.push(rs[i].s + ' × ' + rs[j].s);
+      }
+    return out;
+  },
+  inView(sel) {
+    const r = document.querySelector(sel).getBoundingClientRect();
+    return r.width > 0 && r.top >= -1 && r.bottom <= window.innerHeight + 1 && r.left >= -1 && r.right <= window.innerWidth + 1;
+  },
+  mapOverlaps() {
+    const els = Array.from(document.querySelectorAll('#map-nodes .map-node, #map-nodes .node-mod')).map((e) => e.getBoundingClientRect());
+    let n = 0;
+    for (let i = 0; i < els.length; i++)
+      for (let j = i + 1; j < els.length; j++) {
+        const a = els[i];
+        const b = els[j];
+        if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) n++;
+      }
+    return n;
+  },
+};
+`;
+
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const server = spawn(process.execPath, [path.join(ROOT, 'server.js'), '--port', String(PORT)], { stdio: 'pipe' });
@@ -718,9 +773,11 @@ async function main() {
         const ok = G.evolve(e.id);
         const ws = G.run.weapons.map((x) => x.id);
         out[e.id] = notReady && ready && ok && ws.length === 1 && ws[0] === e.id && G.run.items[e.item] === 1;
-        // evrim silahı dalgada sorunsuz çalışır
+        // evrim silahı dalgada sorunsuz çalışır (yakına bir düşman koy ki yakın dövüş silahı da vursun)
         G.run.wave = 4;
         G.startNextWave();
+        const pl = G.w.players[0];
+        __t.spawn('chaser', pl.x + 70, pl.y);
         __t.step(60 * 6, true);
         out[e.id] = out[e.id] && G.run.kills > 0;
       });
@@ -1757,6 +1814,274 @@ async function main() {
     check('telefonda harita taşmıyor ve düğümler üst üste binmiyor', (await noH('scr-map')) && overlap === 0, overlap);
     await pp.screenshot({ path: path.join(OUT, '21-phone-map.png') });
     await phone.close();
+
+    /* ============================================================ */
+    section('Mobil uyum (telefon, yatay telefon, tablet)');
+    const DEVICES = [
+      { name: 'küçük telefon 320×568', w: 320, h: 568, phone: true },
+      { name: 'telefon 375×667', w: 375, h: 667, phone: true },
+      { name: 'yatay telefon 667×375', w: 667, h: 375, phone: true },
+      { name: 'yatay telefon 915×412', w: 915, h: 412, phone: true },
+      { name: 'tablet 768×1024', w: 768, h: 1024, phone: false },
+    ];
+    for (const d of DEVICES) {
+      const mctx = await browser.newContext({ viewport: { width: d.w, height: d.h }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+      const mp = await mctx.newPage();
+      watch(mp, '(' + d.name + ')');
+      await mp.goto(URL, { waitUntil: 'load' });
+      await mp.evaluate(() => localStorage.clear());
+      await mp.reload({ waitUntil: 'load' });
+      await mp.waitForTimeout(300);
+      await mp.addScriptTag({ content: HELPERS + MOB });
+      const portrait = d.h > d.w;
+      const tag = d.name + ': ';
+      const fit = (id) => mp.evaluate((id) => __mob.fits(id), id);
+      const bad = {};
+      const note = (k, v) => {
+        if (v !== 'ok') bad[k] = v;
+      };
+
+      // Menü
+      const menu = await mp.evaluate(() => ({
+        touch: document.documentElement.classList.contains('touch'),
+        touchHint: getComputedStyle(document.querySelector('.touch-hint')).display !== 'none',
+        kbdHint: getComputedStyle(document.querySelector('.kbd-hint')).display !== 'none',
+        rotate: getComputedStyle(document.querySelector('.rotate-hint')).display !== 'none',
+        newIn: __mob.inView('#btn-new'),
+        setIn: __mob.inView('#btn-settings'),
+      }));
+      check(tag + 'dokunmatik cihaz açılışta tanınır, dokunmatik ipuçları gösterilir', menu.touch && menu.touchHint && !menu.kbdHint, menu);
+      check(tag + 'yan çevirme ipucu yalnızca dikey tutuşta', menu.rotate === portrait, menu);
+      if (!portrait) check(tag + 'yatay menü kaydırmadan sığar', menu.newIn && menu.setIn, menu);
+      note('menu', await fit('menu'));
+      await mp.tap('#btn-new');
+      note('char', await fit('char'));
+      await mp.tap('#char-grid .card >> nth=0');
+      await mp.waitForTimeout(260);
+      note('weapon', await fit('weapon'));
+      await mp.tap('#weapon-grid .card >> nth=5');
+      await mp.waitForTimeout(260);
+      note('danger', await fit('danger'));
+      await mp.tap('#danger-grid .card >> nth=0');
+      await mp.waitForTimeout(700);
+
+      // Dalga: HUD, kamera, kontroller
+      const wave = await mp.evaluate(() => {
+        const G = BR.Game;
+        const p = G.w.players[0];
+        p.invuln = 999;
+        const cv = document.getElementById('game');
+        const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+        cv.dispatchEvent(ev);
+        return {
+          hud: __mob.overlaps(['.hud-tl', '.hud-top', '#btn-pause', '#hud-skills-1', '#toast']),
+          scale: BR.Render.cam.s,
+          playerPx: 22 * BR.Render.cam.s,
+          ctxMenuBlocked: ev.defaultPrevented,
+          joyHintPending: BR.Input.sawTouch && !BR.Input.joyUsed,
+        };
+      });
+      check(tag + 'HUD öğeleri ve bildirim birbirinin üstüne binmez', wave.hud.length === 0, wave.hud);
+      if (d.phone) check(tag + 'kamera telefonda yeterince yakın (patates ≥ 12 px)', wave.playerPx >= 12 && wave.scale >= 0.55, wave);
+      check(tag + 'uzun basma menüsü oyunu bölmez', wave.ctxMenuBlocked, wave);
+      check(tag + 'joystick ipucu ilk dokunuşa kadar gösterilir', wave.joyHintPending, wave);
+      const sk = await mp.evaluate(() => {
+        const r = document.getElementById('sk1-dash').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+      await mp.touchscreen.tap(sk.x, sk.y);
+      await mp.waitForTimeout(60);
+      check(tag + 'atılma düğmesine dokununca atılır', await mp.evaluate(() => BR.Game.w.players[0].dashCd > 0));
+      // ekran dışı düşman okları
+      const arrows = await mp.evaluate(() => {
+        const G = BR.Game;
+        const w = G.w;
+        w.enemies = [];
+        w.spawnT = 9999;
+        const p = w.players[0];
+        const s = BR.Render.cam.s;
+        const halfW = window.innerWidth / 2 / s;
+        __t.spawn('chaser', Math.min(1990, p.x + halfW + 120), p.y);
+        __t.spawn('chaser', p.x, p.y);
+        const calls = { fill: 0 };
+        const fake = new Proxy({}, {
+          get: (o, k) => (k === 'fill' ? () => calls.fill++ : typeof k === 'string' && /^(save|restore|translate|rotate|beginPath|moveTo|lineTo|closePath|stroke)$/.test(k) ? () => {} : o[k]),
+          set: (o, k, v) => ((o[k] = v), true),
+        });
+        BR.Render.drawOffscreen(fake, w);
+        return calls.fill;
+      });
+      check(tag + 'ekran dışındaki yakın düşman için kenar oku çizilir (ekrandaki için çizilmez)', arrows === 1, arrows);
+      // Patron barı
+      const boss = await mp.evaluate(async () => {
+        const G = BR.Game;
+        const p = G.w.players[0];
+        G.X.spawnEnemy('boss', Math.min(1900, p.x + 300), p.y);
+        await new Promise((r) => setTimeout(r, 200));
+        return __mob.overlaps(['#boss-bar', '#hud-skills-1', '.hud-tl', '#btn-pause', '#toast']);
+      });
+      check(tag + 'patron barı yetenek düğmeleri ve HUD ile çakışmaz', boss.length === 0, boss);
+      // Duraklatma
+      await mp.evaluate(() => BR.UI.pause());
+      await mp.waitForTimeout(150);
+      note('pause', await fit('pause'));
+      const fs = await mp.evaluate(() => ({
+        supported: !!(document.fullscreenEnabled || document.webkitFullscreenEnabled),
+        hidden: document.getElementById('pause-fullscreen').hidden,
+        touchText: /sağ alttaki düğmeler/.test(document.getElementById('pause-info').textContent),
+      }));
+      check(tag + 'tam ekran düğmesi yalnızca destekleniyorsa görünür', fs.hidden === !fs.supported, fs);
+      check(tag + 'duraklatmada dokunmatik kontroller anlatılır', fs.touchText, fs);
+      // Dalga arası ekranlar
+      await mp.evaluate(() => {
+        document.getElementById('pause-resume').click();
+        const G = BR.Game;
+        const r = G.run;
+        G.w.enemies = [];
+        G.w.bosses = [];
+        r.pantry = { kasar: 3, sosis: 3, misir: 2, tursu: 2 };
+        r.level += 2;
+        r.pendingLevels = 2;
+        r.crates.push(2);
+        r.materials += 400;
+        G.w.t = G.w.duration;
+      });
+      await mp.waitForTimeout(2500);
+      note('levelup', await fit('levelup'));
+      await mp.evaluate(() => {
+        const G = BR.Game;
+        while (G.run.pendingLevels > 0) {
+          G.getUpgradeOffer();
+          G.chooseUpgrade(0);
+        }
+        BR.UI.nextBetweenStep();
+      });
+      await mp.waitForTimeout(150);
+      note('crate', await fit('crate'));
+      await mp.evaluate(() => {
+        BR.Game.takeCrate(false);
+        BR.UI.nextBetweenStep();
+      });
+      await mp.waitForTimeout(150);
+      note('stand', await fit('stand'));
+      await mp.evaluate(() => document.getElementById('stand-close').click());
+      await mp.waitForTimeout(200);
+      note('shop', await fit('shop'));
+      const goTop = await mp.evaluate(() => {
+        document.getElementById('scr-shop').scrollTop = 0;
+        return __mob.inView('#shop-go');
+      });
+      const goMid = await mp.evaluate(async () => {
+        const s = document.getElementById('scr-shop');
+        s.scrollTop = s.scrollHeight / 2;
+        await new Promise((r) => setTimeout(r, 50));
+        return __mob.inView('#shop-go');
+      });
+      check(tag + '"Haritaya Git" kaydırırken hep görünür', goTop && goMid, { goTop, goMid });
+      for (const t of ['kumpir', 'garden', 'evo']) {
+        await mp.evaluate((t) => document.getElementById('tab-' + t).click(), t);
+        await mp.waitForTimeout(80);
+        note('shop/' + t, await fit('shop'));
+      }
+      await mp.evaluate(() => document.getElementById('tab-inv').click());
+      await mp.evaluate(() => document.getElementById('shop-go').click());
+      await mp.waitForTimeout(250);
+      note('map', await fit('map'));
+      const mapHits = await mp.evaluate(() => __mob.mapOverlaps());
+      check(tag + 'harita düğümleri ve etiketleri çakışmaz', mapHits === 0, mapHits);
+      await mp.evaluate(() => {
+        const G = BR.Game;
+        const opt = G.mapOptions()[0];
+        opt.type = 'event';
+        G.chooseNode(opt.id);
+        BR.UI.resumePhase('event');
+      });
+      await mp.waitForTimeout(150);
+      note('event', await fit('event'));
+      await mp.evaluate(() => {
+        const G = BR.Game;
+        G.run.phase = 'rest';
+        G.state = 'rest';
+        BR.UI.resumePhase('rest');
+      });
+      await mp.waitForTimeout(150);
+      note('rest', await fit('rest'));
+      // Menü alt ekranları
+      await mp.evaluate(() => BR.UI.showMenu());
+      for (const [btn, id] of [['#btn-settings', 'settings'], ['#btn-ach', 'ach'], ['#btn-help', 'help'], ['#btn-daily', 'daily']]) {
+        await mp.tap(btn);
+        await mp.waitForTimeout(120);
+        note(id, await fit(id));
+        await mp.evaluate(() => BR.UI.showMenu());
+      }
+      // Oyun sonu
+      await mp.evaluate(() => {
+        BR.UI.startRun({ charId: 'allround', weaponId: 'pistol', danger: 0 });
+        __t.kill(BR.Game.w.players[0]);
+      });
+      await mp.waitForTimeout(2300);
+      note('end', await fit('end'));
+      check(tag + 'hiçbir ekran yatay taşmaz, tüm düğmeler parmakla basılacak boyutta', Object.keys(bad).length === 0, bad);
+      await mp.screenshot({ path: path.join(OUT, '22-mobile-' + d.w + 'x' + d.h + '.png') });
+      await mctx.close();
+    }
+
+    // Titreşim ve tam ekran (telefon)
+    const vctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+    const vp = await vctx.newPage();
+    watch(vp, '(titreşim)');
+    await vp.addInitScript(() => {
+      window.__vib = [];
+      Object.defineProperty(navigator, 'vibrate', { configurable: true, value: (ms) => (window.__vib.push(ms), true) });
+    });
+    await vp.goto(URL, { waitUntil: 'load' });
+    await vp.waitForTimeout(300);
+    await vp.addScriptTag({ content: HELPERS + MOB });
+    await vp.tap('#btn-settings');
+    check('titreşim ayarı dokunmatik cihazda görünür ve açık gelir', await vp.evaluate(() => !document.getElementById('set-vibrate-row').hidden && document.getElementById('set-vibrate').checked));
+    const vib = await vp.evaluate(async () => {
+      const G = BR.Game;
+      const hit = () => {
+        const w = __t.start({});
+        const p = w.players[0];
+        p.invuln = 0;
+        G.stats.dodge = 0;
+        G.X.hurtPlayer(p, 2);
+      };
+      window.__vib = [];
+      hit();
+      const on = window.__vib.length;
+      await new Promise((r) => setTimeout(r, 150));
+      BR.settings.vibrate = false;
+      window.__vib = [];
+      hit();
+      const off = window.__vib.length;
+      BR.settings.vibrate = true;
+      __t.stop();
+      return { on, off };
+    });
+    check('hasar alınca titrer, ayar kapalıyken titremez', vib.on === 1 && vib.off === 0, vib);
+    await vp.evaluate(() => BR.UI.showMenu());
+    const fsSup = await vp.evaluate(() => !!document.fullscreenEnabled);
+    if (fsSup) {
+      await vp.tap('#btn-fullscreen');
+      await vp.waitForTimeout(300);
+      const fsOn = await vp.evaluate(() => ({ el: !!document.fullscreenElement, text: document.getElementById('btn-fullscreen').textContent }));
+      await vp.tap('#btn-fullscreen');
+      await vp.waitForTimeout(300);
+      const fsOff = await vp.evaluate(() => ({ el: !!document.fullscreenElement, text: document.getElementById('btn-fullscreen').textContent }));
+      check('tam ekran düğmesi açar ve kapatır', fsOn.el && fsOn.text === 'Tam Ekrandan Çık' && !fsOff.el && fsOff.text === 'Tam Ekran', { fsOn, fsOff });
+    } else {
+      check('tam ekran desteklenmiyorsa düğme gizli', await vp.evaluate(() => document.getElementById('btn-fullscreen').hidden));
+    }
+    await vctx.close();
+
+    // Masaüstünde dokunmatik arayüz devreye girmez
+    const desk = await page.evaluate(() => ({
+      touch: document.documentElement.classList.contains('touch'),
+      kbd: getComputedStyle(document.querySelector('.kbd-hint')).display !== 'none',
+    }));
+    check('masaüstünde klavye ipuçları kalır, dokunmatik kipi açılmaz', !desk.touch && desk.kbd, desk);
 
     check('konsolda hata yok', errors.length === 0, errors.slice(0, 5));
   } catch (e) {

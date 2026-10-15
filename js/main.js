@@ -9,7 +9,7 @@
 
   const M = { manual: false, booted: false, last: 0, acc: 0, errors: 0 };
 
-  BR.settings = { volume: 0.5, music: 0.35, speed: 1, easy: false, colorblind: false, shake: true, hitstop: true, dmgNumbers: true };
+  BR.settings = { volume: 0.5, music: 0.35, speed: 1, easy: false, colorblind: false, shake: true, hitstop: true, dmgNumbers: true, vibrate: true };
 
   function loadSettings() {
     const s = U.store.get(SETTINGS_KEY, null);
@@ -18,7 +18,7 @@
       if (typeof s.volume === 'number' && s.volume >= 0 && s.volume <= 1) st.volume = s.volume;
       if (typeof s.music === 'number' && s.music >= 0 && s.music <= 1) st.music = s.music;
       if ([0.75, 1, 1.25].includes(s.speed)) st.speed = s.speed;
-      ['easy', 'colorblind', 'shake', 'hitstop', 'dmgNumbers'].forEach((k) => {
+      ['easy', 'colorblind', 'shake', 'hitstop', 'dmgNumbers', 'vibrate'].forEach((k) => {
         if (typeof s[k] === 'boolean') st[k] = s[k];
       });
     }
@@ -34,6 +34,20 @@
 
   BR.saveSettings = function () {
     U.store.set(SETTINGS_KEY, BR.settings);
+  };
+
+  // Dokunmatik cihazlarda kısa titreşim (ayardan kapatılabilir, desteklemeyen tarayıcıda sessizce geçer)
+  let lastHaptic = 0;
+  BR.haptic = function (ms) {
+    if (!BR.settings.vibrate || !BR.Input || !BR.Input.sawTouch || typeof navigator.vibrate !== 'function') return;
+    const now = performance.now();
+    if (now - lastHaptic < 120) return;
+    lastHaptic = now;
+    try {
+      navigator.vibrate(ms);
+    } catch (e) {
+      /* yok say */
+    }
   };
 
   function loop(ts) {

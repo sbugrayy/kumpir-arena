@@ -796,6 +796,7 @@
     w.hurtFlash = 0.25;
     floatText(p.x, p.y - 34, '-' + dmg, '#ff5d5d', 22);
     sfx('hurt');
+    if (BR.haptic) BR.haptic(p.hp <= 0 ? 160 : 30);
     G.addHitstop(0.05);
     if (G.fx.thorns) aoe(p.x, p.y, 150, (8 + 3 * Math.max(0, s.armor)) * G.fx.thorns, 8, p, '#c9a26b', true);
     if (p.hp <= 0) {

@@ -28,6 +28,8 @@
   --radius: 12px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 [hidden] {
@@ -214,7 +216,7 @@ html.has-pad .modal :focus {
 .hud-tl {
   position: absolute;
   top: calc(12px + var(--safe-top));
-  left: 12px;
+  left: calc(12px + var(--safe-left));
   width: min(260px, 44vw);
   display: grid;
   gap: 6px;
@@ -319,7 +321,7 @@ html.has-pad .modal :focus {
 .hud-pause {
   position: absolute;
   top: calc(12px + var(--safe-top));
-  right: 12px;
+  right: calc(12px + var(--safe-right));
   width: 46px;
   height: 46px;
   pointer-events: auto;
@@ -412,7 +414,7 @@ html.has-pad .modal :focus {
   inset: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-inline: 16px;
+  padding-inline: max(16px, var(--safe-left)) max(16px, var(--safe-right));
   padding-block: calc(20px + var(--safe-top)) calc(28px + var(--safe-bottom));
   display: flex;
   justify-content: center;
@@ -1343,7 +1345,7 @@ html.cb {
 
 .hud-skills {
   position: absolute;
-  right: 12px;
+  right: calc(12px + var(--safe-right));
   bottom: calc(14px + var(--safe-bottom));
   display: flex;
   gap: 8px;
@@ -1352,7 +1354,7 @@ html.cb {
 
 #hud.coop #hud-skills-1 {
   right: auto;
-  left: 12px;
+  left: calc(12px + var(--safe-left));
 }
 
 .skill {
@@ -1430,7 +1432,8 @@ html.touch .skill {
 /* ---------- Ana menü / seçimler ---------- */
 .menu-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -2298,8 +2301,367 @@ html.touch .skill {
     flex-direction: column;
   }
 
+}
+
+/* ---------- Mobil uyum ---------- */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+#app {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.share-text {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button,
+input,
+select,
+label {
+  touch-action: manipulation;
+}
+
+/* Dokunmatik cihazda klavye ipuçları yerine dokunmatik ipuçları */
+.touch-hint,
+.rotate-hint {
+  display: none;
+}
+
+html.touch .kbd-hint,
+html.touch .key-hint {
+  display: none;
+}
+
+html.touch .touch-hint {
+  display: block;
+}
+
+.rotate-hint {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+@media (orientation: portrait) {
+  html.touch .rotate-hint {
+    display: block;
+  }
+}
+
+/* Parmak için yeterli dokunma alanı */
+html.touch .top-btn .top-chip {
+  min-height: 40px;
+  padding-block: 6px;
+}
+
+html.touch .tab,
+html.touch .seg-btn {
+  min-height: 44px;
+}
+
+/* Dokunmatikte takılı kalan hover izlerini kaldır, basınca kısa geri bildirim ver */
+@media (hover: none) {
+  button.card:hover {
+    transform: none;
+    box-shadow: 0 4px 0 var(--ink);
+    border-color: var(--tier);
+  }
+
+  .btn:hover:not(:disabled) {
+    filter: none;
+  }
+
+  .map-opt:hover,
+  .choice:hover:not(:disabled) {
+    transform: none;
+    border-color: var(--line);
+  }
+
+  .map-node.pick:hover {
+    background: var(--panel-3);
+  }
+
+  button.card:active,
+  .map-opt:active,
+  .choice:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* Dükkanda "Haritaya Git" uzun listede de hep elinin altında */
+.shop-go-row {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin-inline: -6px;
+  padding: 16px 6px calc(8px + var(--safe-bottom));
+  background: linear-gradient(to top, var(--panel) 60%, rgba(42, 33, 27, 0));
+}
+
+/* Telefon (dikey) */
+@media (max-width: 560px) {
+  .upgrade-grid,
+  .danger-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .upgrade-card {
+    padding: 10px;
+  }
+
+  .upgrade-card .stat-lines {
+    font-size: 15px;
+  }
+
+  .upgrade-card .card-name {
+    font-size: 17px;
+  }
+
+  .danger-card .card-desc {
+    font-size: 13px;
+  }
+
+  .screen-head .btn-ghost {
+    padding: 6px 8px;
+    font-size: 15px;
+  }
+
+  .screen-head h2 {
+    font-size: 22px;
+  }
+
+  .step {
+    font-size: 14px;
+  }
+
+  .stand .row-actions.left {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tabs {
+    gap: 4px;
+  }
+
+  .tab {
+    flex: 1 1 0;
+    padding-inline: 6px;
+  }
+
+  .logo-potato {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* haritada komşu düğümlerin değiştirici etiketleri çakışmasın */
+  .node-mod {
+    width: max-content;
+    max-width: 68px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.1;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .inventory {
+    padding: 10px;
+  }
+
+  .weapon-slots {
+    gap: 4px;
+  }
+}
+
+/* Patron barı görünürken bildirim onun üstüne çıkar */
+html.boss-on .toast {
+  bottom: calc(80px + var(--safe-bottom));
+}
+
+@media (max-width: 340px) {
+  .screen {
+    padding-inline: max(8px, var(--safe-left)) max(8px, var(--safe-right));
+  }
+
+  .panel-wrap {
+    padding: 10px;
+  }
+
+  .inventory {
+    padding: 6px;
+  }
+
+  .weapon-slots {
+    gap: 2px;
+  }
+}
+
+/* Dar ekranlarda bildirimler yetenek düğmelerinin üstünde, başarımlar HUD'un altında */
+@media (max-width: 700px), (max-height: 500px) {
+  .toast {
+    bottom: calc(100px + var(--safe-bottom));
+    max-width: calc(100% - 24px);
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .ach-toast {
+    padding: 6px 10px;
+  }
+
+  .ach-toast span {
+    font-size: 12px;
+  }
+
+  .ach-toasts .ach-toast:nth-last-child(n + 3) {
+    display: none;
+  }
+}
+
+@media (max-width: 880px), (max-height: 500px) {
+  html.boss-on .toast {
+    bottom: calc(150px + var(--safe-bottom));
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .ach-toasts {
+    top: calc(124px + var(--safe-top));
+    left: calc(12px + var(--safe-left));
+    right: calc(12px + var(--safe-right));
+    max-width: none;
+  }
+}
+
+/* Telefon (yatay): alçak ekranda her şey daha sıkı */
+@media (max-height: 500px) and (orientation: landscape) {
+  .screen {
+    padding-block: calc(10px + var(--safe-top)) calc(12px + var(--safe-bottom));
+  }
+
+  .panel-wrap {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  .menu-wrap {
+    gap: 10px;
+  }
+
+  .logo-potato {
+    width: 60px;
+    height: 60px;
+  }
+
+  .logo h1 {
+    font-size: 42px;
+  }
+
+  .tagline {
+    font-size: 14px;
+  }
+
+  .menu-buttons {
+    width: min(620px, 100%);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .menu-buttons > .btn-big {
+    grid-column: 1 / -1;
+    min-height: 46px;
+    font-size: 20px;
+  }
+
   .menu-row {
-    grid-template-columns: minmax(0, 1fr);
+    display: contents;
+  }
+
+  .menu-buttons .btn {
+    min-height: 44px;
+    font-size: 16px;
+    padding-inline: 10px;
+  }
+
+  .menu-keys {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .credit {
+    display: none;
+  }
+
+  .bar {
+    height: 22px;
+  }
+
+  .bar-xp {
+    height: 16px;
+  }
+
+  .bar-text {
+    font-size: 13px;
+  }
+
+  .hud-mats {
+    font-size: 20px;
+  }
+
+  .hud-wave {
+    font-size: 15px;
+  }
+
+  .hud-timer {
+    font-size: 32px;
+  }
+
+  .skill,
+  html.touch .skill {
+    width: 74px;
+    height: 58px;
+  }
+
+  .boss-bar {
+    bottom: calc(84px + var(--safe-bottom));
+  }
+
+  .ach-toasts {
+    top: calc(66px + var(--safe-top));
+    right: calc(12px + var(--safe-right));
+    max-width: min(300px, 42vw);
+  }
+
+  .ach-toasts .ach-toast:nth-last-child(n + 2) {
+    display: none;
+  }
+
+  .upgrade-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .card {
+    padding: 10px;
   }
 }
 

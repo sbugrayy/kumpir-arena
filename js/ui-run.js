@@ -472,8 +472,9 @@
     const MAP_W = U.clamp($('map-box').clientWidth || 600, 260, 600);
     const H = layers.length * ROW + 30;
     const pos = (n) => {
+      // soldaki katman numaralarına yer bırakıp düğümleri genişliğe yay (dar ekranda etiketler çakışmasın)
       const count = run.map.layers[n.layer].length;
-      return { x: ((n.idx + 1) / (count + 1)) * MAP_W, y: (to - n.layer) * ROW + 50 };
+      return { x: (0.1 + (0.88 * (n.idx + 0.5)) / count) * MAP_W, y: (to - n.layer) * ROW + 50 };
     };
     $('map-sub').textContent = 'Sıradaki: ' + (run.wave + 1) + (run.endless ? '' : ' / ' + D.MAX_WAVE);
     const cv = $('map-canvas');

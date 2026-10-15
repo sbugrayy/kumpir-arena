@@ -45,6 +45,16 @@ Oyun tamamen statik dosyalardan oluşur, derleme gerekmez:
 - **Gamepad:** sol çubuk/yön tuşları hareket, `A` atılma, `X`/`Y`/`B` yetenek, `Start` duraklat. Menülerde yön tuşlarıyla gezin, `A` seç, `B` geri. İki gamepad takılırsa iki kişilik oyunda her oyuncu kendi kolunu kullanır.
 - **Dokunmatik ekran:** parmağını sürükle (sanal joystick), sağ alttaki düğmelerle atıl ve yeteneğini kullan.
 
+### Telefon ve tablet
+
+Oyun telefonda ve tablette, dikey ya da yatay tutuşta oynanır; yatay tutuş arenayı daha geniş gösterir.
+
+- Dokunmatik cihaz açılışta tanınır: menüde ve duraklatmada klavye yerine dokunmatik kontroller anlatılır, ilk dalgada joystick ipucu çıkar.
+- Kamera küçük ekranlarda biraz daha yakındır; ekranın dışından yaklaşan düşmanlar ve patron kenarlarda okla gösterilir.
+- Ekranlar çentikli telefonlarda güvenli alana göre yerleşir; dükkandaki "Haritaya Git" düğmesi kaydırırken hep görünür.
+- Destekleyen tarayıcılarda menüde ve duraklatmada **Tam Ekran** düğmesi, destekleyen telefonlarda hasar alınca kısa **titreşim** vardır (ayarlardan kapatılabilir).
+- Tarayıcının "Ana ekrana ekle" seçeneğiyle uygulama gibi tam ekran açılır ve internetsiz de çalışır.
+
 Silahlar menzile giren düşmana **kendiliğinden** saldırır. Silahına tıklayıp (dükkanda ya da duraklatınca) hedef önceliğini **en yakın / en güçlü / en az canlı** olarak seçebilirsin.
 
 ## Oyunun içeriği
@@ -111,7 +121,7 @@ npm i -D playwright
 npm test
 ```
 
-Testler arayüzün tüm akışını tıklayarak dener (menü, kilitli karakterler, atılma ve yetenekler, hedef önceliği, seviye/sandık/tezgah/dükkan sekmeleri, rota haritası, olay ve dinlenme, kayıttan devam, eski kayıt yükseltmesi, co-op, gamepad, ayarlar, telefon görünümü), her yeni mekaniği ayrı ayrı doğrular (eşya etkileri, evrimler, yeni düşmanlar, elit özellikleri, üç patron, arenalar, değiştiriciler, olaylar, tarifler, tohumlu rastgelelik, PWA çevrimdışı açılış, tek dosya paket) ve bot ile 20 dalgalık tam koşular oynar.
+Testler arayüzün tüm akışını tıklayarak dener (menü, kilitli karakterler, atılma ve yetenekler, hedef önceliği, seviye/sandık/tezgah/dükkan sekmeleri, rota haritası, olay ve dinlenme, kayıttan devam, eski kayıt yükseltmesi, co-op, gamepad, ayarlar, telefon görünümü; ayrıca 320 px'lik küçük telefondan tablete beş farklı ekran boyutunda taşma, çakışma ve dokunma hedefi boyutu kontrolleri), her yeni mekaniği ayrı ayrı doğrular (eşya etkileri, evrimler, yeni düşmanlar, elit özellikleri, üç patron, arenalar, değiştiriciler, olaylar, tarifler, tohumlu rastgelelik, PWA çevrimdışı açılış, tek dosya paket) ve bot ile 20 dalgalık tam koşular oynar.
 
 `npm run balance` farklı karakter ve tehlike seviyeleriyle botun ne kadar ilerlediğini gösterir.
 

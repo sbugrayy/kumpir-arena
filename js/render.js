@@ -148,8 +148,16 @@
   }
 
   /* ---------- Kamera ---------- */
+  // Görünen dünya alanı ekrana göre ölçeklenir; dokunmatik cihazlarda biraz daha yakın
+  // (küçük ekranda patates ve düşmanlar seçilebilsin), kısa kenarda en az ~560 birim görünür
   function baseScale() {
-    return U.clamp(Math.sqrt((R.w * R.h) / (1250 * 820)), 0.42, 2.2);
+    const touch = !!(BR.Input && BR.Input.sawTouch);
+    const minDim = Math.min(R.w, R.h);
+    let s = Math.sqrt((R.w * R.h) / (touch ? 1050 * 700 : 1250 * 820));
+    s = Math.min(s, minDim / 560);
+    // çok küçük telefonlarda patates seçilemeyecek kadar küçülmesin
+    if (touch) s = Math.max(s, Math.min(0.56, minDim / 520));
+    return U.clamp(s, 0.42, 2.2);
   }
 
   function playing(G) {
@@ -896,7 +904,30 @@
       ctx.fillStyle = 'rgba(255,40,40,' + (w.hurtFlash * 0.6).toFixed(3) + ')';
       ctx.fillRect(0, 0, R.w, R.h);
     }
+    if (w.modId !== 'fog') drawOffscreen(ctx, w);
     const tc = BR.Input && BR.Input.touch;
+    // ilk dalgada dokunmatik joystick ipucu (hiç kullanılmadıysa)
+    if (tc && !tc.active && BR.Input.sawTouch && !BR.Input.joyUsed && w.n <= 1) {
+      // sol tarafta, alttaki bildirim ve yetenek düğmelerinin üstünde
+      const hx = U.clamp(R.w * 0.2, 80, 130);
+      const hy = R.h * 0.58;
+      const pulse = 0.5 + 0.5 * Math.sin(R.t * 3);
+      ctx.globalAlpha = 0.22 + 0.12 * pulse;
+      ctx.fillStyle = '#f6e9d2';
+      ctx.beginPath();
+      ctx.arc(hx, hy, BR.Input.JOY_RADIUS, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath();
+      ctx.arc(hx + Math.cos(R.t * 1.6) * 22, hy + Math.sin(R.t * 1.6) * 22, 20, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.9;
+      ctx.font = '700 14px "Nunito", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Parmağını sürükle', hx, hy - BR.Input.JOY_RADIUS - 16);
+      ctx.globalAlpha = 1;
+    }
     if (tc && tc.active) {
       ctx.globalAlpha = 0.35;
       ctx.fillStyle = '#f6e9d2';
@@ -914,6 +945,59 @@
       ctx.globalAlpha = 1;
     }
   }
+
+  // Ekran dışındaki yakın düşmanlar (ve her zaman patron/elit) için kenar okları
+  function drawOffscreen(ctx, w) {
+    const pad = 16;
+    const s = R.cam.s;
+    const range = 520; // ekranın bu kadar dünya birimi dışına kadar uyar
+    const marks = [];
+    for (const e of w.enemies) {
+      if (e.dead || (e.dmg <= 0 && !e.def.big)) continue;
+      const sp = toScreen(e.x, e.y);
+      const er = e.r * s;
+      if (sp.x > -er && sp.x < R.w + er && sp.y > -er && sp.y < R.h + er) continue;
+      const ox = sp.x < 0 ? -sp.x : sp.x > R.w ? sp.x - R.w : 0;
+      const oy = sp.y < 0 ? -sp.y : sp.y > R.h ? sp.y - R.h : 0;
+      const off = Math.max(ox, oy) / s;
+      if (off > range && !e.def.big) continue;
+      marks.push({ sp, off, big: !!e.def.big });
+    }
+    if (!marks.length) return;
+    marks.sort((a, b) => b.big - a.big || a.off - b.off);
+    const cx = R.w / 2;
+    const cy = R.h / 2;
+    for (const m of marks.slice(0, 18)) {
+      const dx = m.sp.x - cx;
+      const dy = m.sp.y - cy;
+      // ekran kenarına (iç kenar boşluğuyla) izdüşüm
+      const kx = dx ? (R.w / 2 - pad) / Math.abs(dx) : Infinity;
+      const ky = dy ? (R.h / 2 - pad) / Math.abs(dy) : Infinity;
+      const k = Math.min(kx, ky);
+      const x = cx + dx * k;
+      const y = cy + dy * k;
+      const a = Math.atan2(dy, dx);
+      const near = 1 - Math.min(1, m.off / range);
+      const size = m.big ? 13 : 7 + near * 4;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      ctx.globalAlpha = m.big ? 0.95 : 0.35 + near * 0.5;
+      ctx.fillStyle = m.big ? '#ffcd4d' : '#ff6b5e';
+      ctx.strokeStyle = '#120c08';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(size, 0);
+      ctx.lineTo(-size * 0.8, size * 0.75);
+      ctx.lineTo(-size * 0.8, -size * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  R.drawOffscreen = drawOffscreen;
 
   // Sis: yalnızca oyuncuların çevresi görünür
   function drawFog(ctx, w) {

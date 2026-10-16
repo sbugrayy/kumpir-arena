@@ -37,3 +37,9 @@
 ## Müzik
 
 - [x] **29. Seçilen arka plan müzikleri** — Dinleme sayfasında seçilen parçalar oyuna eklendi: Menü *Arcade Tema*, Dükkan *Pazar Funk*, Dalga *Synthwave Aksiyon*, Patron *Karanlık Synth*. Her biri 8 ölçüye (A + B bölümü) uzatıldı; dalga yoğunluğuna göre katmanlar, patronun canına göre sertleşme, yumuşak parça geçişleri, duraklatınca boğuk ses. Ses seviyesi çevrimdışı ölçümle eski müziğe göre dengelendi.
+
+## Evrim ve tezgah düzeltmeleri
+
+- [x] **30. Katalizörler dükkanda çıkmıyordu** — Bileme Taşı, Kibrit, Dürbün ve Tornavida 19 sıradan eşyadan biri olduğu için oyun ortasında neredeyse hiç görünmüyordu. Akıllı dükkan: evrimin iki silahı sendeyse eksik katalizör dükkanların yaklaşık %70'inde, tek silahı sendeyse %27'sinde çıkar; kilitli teklifler hiç değişmez.
+- [x] **31. Evrim için en az III. kademe** — İki silahın da en az III. kademede olması gerekir; Evrim sekmesi sendeki kademeyi ve eksiği yazar, en çok ilerlenen tarif önde gösterilir.
+- [x] **32. Ortaköy tezgahı kileri** — Kiler her zaman aynı sırada 8 satırlık sabit liste (adet değişince pencere uzamaz); siparişteki malzemeler yeşil çerçeveli; 1–8 (ve Numpad) tuşları malzeme ekler, Enter servis eder, Backspace geri alır; telefonda 2, geniş ekranda ve yatay telefonda 4 sütun, kiler tabak ile düğmelerin arasında.

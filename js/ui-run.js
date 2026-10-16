@@ -162,24 +162,63 @@
     $('stand-undo').disabled = !st.plate.length;
     $('stand-clear').disabled = !st.plate.length;
     $('stand-skip').disabled = !cust;
+    // Kiler: her zaman aynı sırada 8 satır (1–8 kısayolları bu sırayı izler); adedi 0 olan soluk
     const pantry = $('stand-pantry');
     pantry.innerHTML = '';
-    const ids = D.TOPPINGS.map((t) => t.id).filter((id) => run.pantry[id] > 0);
-    if (!ids.length) pantry.append(el('p', 'muted empty-note', 'Kilerin boş.'));
-    ids.forEach((id) => {
-      const b = el('button', 'top-btn');
-      b.append(toppingChip(id, ' ×' + run.pantry[id]));
-      b.title = 'Tabağa koy · satış değeri ' + G.toppingPrice(id);
-      b.disabled = !cust;
-      b.addEventListener('click', () => {
-        if (G.standAdd(id)) h.sfx('click');
-        renderStand();
+    const missing = {}; // siparişte olup tabağa henüz konmamış malzemeler
+    if (cust) {
+      cust.order.forEach((id) => (missing[id] = (missing[id] || 0) + 1));
+      st.plate.forEach((id) => {
+        if (missing[id]) missing[id]--;
       });
-      pantry.append(b);
+    }
+    D.TOPPINGS.forEach((tp, i) => {
+      const n = run.pantry[tp.id] || 0;
+      const li = el('li');
+      const b = el('button', 'pantry-row' + (n ? '' : ' empty') + (n && missing[tp.id] > 0 ? ' need' : ''));
+      b.dataset.id = tp.id;
+      const ic = h.canvasEl('ico-top');
+      R.toppingIcon(ic, tp.id, 22);
+      b.append(el('kbd', 'key', String(i + 1)), ic, el('span', 'pr-name', tp.name), el('span', 'pr-count', '×' + n));
+      b.disabled = !cust || n <= 0;
+      b.setAttribute('aria-keyshortcuts', String(i + 1));
+      b.setAttribute('aria-label', tp.name + ', kilerde ' + n + (missing[tp.id] > 0 ? ', siparişte var' : ''));
+      b.title = 'Tabağa koy (' + (i + 1) + ') · satış değeri ' + G.toppingPrice(tp.id);
+      b.addEventListener('click', () => standAdd(tp.id));
+      li.append(b);
+      pantry.append(li);
     });
     $('stand-earned').textContent = 'Bu gece: ' + st.served + ' servis · +' + st.earned + ' malzeme';
   }
   UI.renderStand = renderStand;
+
+  function standAdd(id) {
+    if (G.standAdd(id)) h.sfx('click');
+    else h.sfx('error');
+    renderStand();
+  }
+
+  // Tezgah kısayolları: 1–8 malzeme ekler, Enter servis eder, Backspace geri alır
+  UI.standKey = function (e) {
+    const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code || '') || (/^[1-9]$/.test(e.key || '') ? [0, e.key] : null);
+    if (m) {
+      if (!e.repeat) {
+        const tp = D.TOPPINGS[Number(m[1]) - 1];
+        if (tp) standAdd(tp.id);
+      }
+      return true;
+    }
+    if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.key === 'Enter') {
+      // odaktaki düğmenin kendi tıklamasıyla çift işlem olmasın: her zaman servis
+      if (!e.repeat && !$('stand-serve').disabled) $('stand-serve').click();
+      return true;
+    }
+    if (e.code === 'Backspace' || e.key === 'Backspace') {
+      if (!e.repeat && !$('stand-undo').disabled) $('stand-undo').click();
+      return true;
+    }
+    return false;
+  };
 
   /* ================= Dükkan ================= */
   UI.shopTab = 'inv';
@@ -406,9 +445,12 @@
       pane.append(el('p', 'muted empty-note', 'Bu karakter silah taşımadığı için evrim yapamaz.'));
       return;
     }
-    pane.append(el('p', 'note', 'Aşağıdaki iki silah ve katalizör eşya sende olunca evrimleştirebilirsin. İki silah tek bir efsanevi silaha dönüşür; eşya sende kalır.'));
+    const minRoman = U.ROMAN[D.EVO_MIN_TIER];
+    pane.append(el('p', 'note', 'İki silah da en az ' + minRoman + '. kademede ve katalizör eşya sendeyse evrimleştirebilirsin. İki silah tek bir efsanevi silaha dönüşür; eşya sende kalır. Silahlardan birine sahip olunca katalizör dükkanda çok daha sık çıkar.'));
     const grid = el('div', 'card-grid evo-grid');
-    list.forEach((st) => {
+    // hazır olanlar önde, sonra en çok ilerlenenler
+    const score = (st) => (st.ready ? 10 : 0) + (st.haveA ? 1 : st.tierA ? 0.5 : 0) + (st.haveB ? 1 : st.tierB ? 0.5 : 0) + (st.haveItem ? 1 : 0);
+    list.slice().sort((x, y) => score(y) - score(x)).forEach((st) => {
       const def = D.WEAPON_BY_ID[st.id];
       const card = el('div', 'card tier-evo evo' + (st.ready ? ' ready' : ''));
       const ic = h.canvasEl('ico');
@@ -416,9 +458,18 @@
       card.append(h.cardTop(ic, def.name, 'Evrim silahı'));
       card.append(el('p', 'card-note', def.desc));
       const needs = el('ul', 'evo-needs');
-      const need = (ok, text) => needs.append(el('li', ok ? 'have' : 'miss', (ok ? '✓ ' : '✗ ') + text));
-      need(st.haveA, D.WEAPON_BY_ID[st.ev.a].name);
-      need(st.haveB, D.WEAPON_BY_ID[st.ev.b].name);
+      const need = (ok, text, part) => {
+        const li = el('li', ok ? 'have' : part ? 'part' : 'miss', (ok ? '✓ ' : '✗ ') + text);
+        needs.append(li);
+      };
+      const weaponNeed = (id, tier, ok) => {
+        const name = D.WEAPON_BY_ID[id].name;
+        if (ok) need(true, name + ' ' + U.ROMAN[tier]);
+        else if (tier) need(false, name + ' · sende ' + U.ROMAN[tier] + ', en az ' + minRoman + ' gerekli', true);
+        else need(false, name + ' · en az ' + minRoman + '. kademe');
+      };
+      weaponNeed(st.ev.a, st.tierA, st.haveA);
+      weaponNeed(st.ev.b, st.tierB, st.haveB);
       need(st.haveItem, D.ITEM_BY_ID[st.ev.item].name + ' (eşya)');
       card.append(needs);
       const b = el('button', 'btn btn-primary', 'Evrimleştir');

@@ -175,7 +175,10 @@
   ];
   D.WEAPON_TIER_MULT = [1, 1.9, 3.5, 6.5];
 
-  // İki farklı silah + katalizör eşya = evrim silahı (katalizör harcanmaz)
+  // İki farklı silah + katalizör eşya = evrim silahı (katalizör harcanmaz).
+  // İki silahın da en az EVO_MIN_TIER kademede olması gerekir. IV şartında çoğu tarifte iki efsanevi
+  // silah, çıkan evrim silahından toplamda daha güçlü olduğu için evrim kayba dönerdi; III dengeli.
+  D.EVO_MIN_TIER = 3;
   D.EVOLUTIONS = [
     { id: 'flamer', a: 'wand', b: 'shotgun', item: 'match' },
     { id: 'gatling', a: 'pistol', b: 'smg', item: 'ammo' },

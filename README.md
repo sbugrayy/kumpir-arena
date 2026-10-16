@@ -64,7 +64,7 @@ Silahlar menzile giren düşmana **kendiliğinden** saldırır. Silahına tıkla
   - **Kasap:** kesici silahlar %50 güçlü, diğerleri %25 zayıf (Satır Fırtınası)
   - **Çürük:** etrafına zehir saçar ama her dalga 1 maks. can kaybeder (Zehir Bulutu)
 - **Atılma:** kısa bir hamle; atılırken hasar almazsın.
-- **12 silah + 6 evrim silahı**, 4 kademe. Aynı silahtan iki tane birleşir. Belirli iki silah ve bir katalizör eşya bir araya gelince evrimleşir:
+- **12 silah + 6 evrim silahı**, 4 kademe. Aynı silahtan iki tane birleşir. Belirli iki silah en az III. kademedeyken bir katalizör eşyayla evrimleşir (silahlardan birine sahip olunca dükkan katalizörü çok daha sık önerir):
   Tabanca + Makineli Tüfek + Mermi Kutusu = Gatling · Ateş Asası + Pompalı + Kibrit = Alev Püskürtücü · Yumruk + Çekiç + Bileme Taşı = Deprem Eldiveni · Arbalet + Mızrak + Dürbün = Balista · Roketatar + İngiliz Anahtarı + Tornavida = Güdümlü Füze · Bıçak + Kılıç + Vampir Dişi = Vampir Kılıcı
 - **55 eşya**, bunların 12'si kuralı değiştirir (Bomba Yeleği, Zincir Yıldırım, Kalkan Jeneratörü, Gölge Pelerini, Diken Zırhı, Kumbara, Sihirli Fasulye...)
 - **8 silah sınıfı ve set bonusları**, 16 istatistik

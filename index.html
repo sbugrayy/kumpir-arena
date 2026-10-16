@@ -167,26 +167,27 @@
           <h2>Ortaköy Tezgahı</h2>
           <span class="step" id="stand-sub"></span>
         </header>
-        <p class="note">Gece oldu, tezgahı aç: kilerdeki malzemelerle müşterinin siparişini birebir hazırla ve servis et. Hızlı servise bahşiş! Malzemeyi satmak yerine kumpirine koymak için dükkandaki Kumpir sekmesini kullanabilirsin.</p>
+        <p class="note">Kilerdeki malzemelerle siparişi birebir hazırla ve servis et; hızlı servise bahşiş. Siparişteki malzemeler kilerde yeşil çerçeveli.</p>
         <div class="stand-body">
-          <div class="stand-main">
-            <div class="customer" id="stand-customer"></div>
-            <div class="plate-wrap">
-              <h3>Tabak</h3>
-              <div class="plate" id="stand-plate"></div>
-            </div>
+          <div class="customer" id="stand-customer"></div>
+          <div class="plate-wrap">
+            <h3>Tabak</h3>
+            <div class="plate" id="stand-plate"></div>
+          </div>
+          <aside class="side-col stand-pantry">
+            <div class="inv-head"><h3 id="stand-pantry-title">Kiler</h3><span class="muted kbd-hint">1–8 tuşları</span></div>
+            <ul class="pantry-list" id="stand-pantry" aria-labelledby="stand-pantry-title"></ul>
+            <div class="stand-earned" id="stand-earned"></div>
+          </aside>
+          <div class="stand-actions">
             <div class="row-actions left">
-              <button class="btn btn-primary" id="stand-serve" type="button">Servis Et</button>
-              <button class="btn" id="stand-undo" type="button">Geri Al</button>
+              <button class="btn btn-primary" id="stand-serve" type="button" aria-keyshortcuts="Enter">Servis Et</button>
+              <button class="btn" id="stand-undo" type="button" aria-keyshortcuts="Backspace">Geri Al</button>
               <button class="btn" id="stand-clear" type="button">Tabağı Boşalt</button>
               <button class="btn" id="stand-skip" type="button">Müşteriyi Geç</button>
             </div>
+            <p class="stand-keys kbd-hint">Kısayollar: <kbd>1</kbd>–<kbd>8</kbd> malzeme ekler · <kbd>Enter</kbd> servis eder · <kbd>Backspace</kbd> geri alır</p>
           </div>
-          <aside class="side-col">
-            <h3>Kiler</h3>
-            <div class="pantry" id="stand-pantry"></div>
-            <div class="stand-earned" id="stand-earned"></div>
-          </aside>
         </div>
         <div class="row-actions">
           <button class="btn btn-danger" id="stand-close" type="button">Tezgahı Kapat</button>
@@ -376,7 +377,7 @@
           <li><strong>Malzeme topla, faiz kazan.</strong> Yeşil malzemeler hem para hem deneyimdir. Dalga sonunda elinde tuttuğun her 10 malzeme için 1 faiz alırsın (en fazla 10).</li>
           <li><strong>Kumpirini doldur.</strong> Düşmanlardan kaşar, sosis, turşu gibi kumpir malzemeleri düşer. Dükkandaki Kumpir sekmesinde 4 tanesini kumpirine koy; doğru üçlü ya da dörtlüler tarif bonusu verir. İstersen gece tezgahında satıp malzeme kazan.</li>
           <li><strong>Tohum ek, sonra hasat et.</strong> Bahçe sekmesinden tohum alırsın; birkaç dalga sonra bedava eşya sandığı verir.</li>
-          <li><strong>Silahlarını evrimleştir.</strong> Belirli iki silah ve bir katalizör eşya bir araya gelince Evrim sekmesinden benzersiz bir silah yaparsın.</li>
+          <li><strong>Silahlarını evrimleştir.</strong> Belirli iki silah en az III. kademedeyken bir katalizör eşyayla birleşince Evrim sekmesinden benzersiz bir silah yaparsın. Silahlardan birine sahip olunca katalizör dükkanda daha sık çıkar.</li>
           <li><strong>Seviye atla, pişip kumpir ol.</strong> Seviye atladıkça patatesin çiğden haşlanmışa, fırına ve sonunda kumpire dönüşür.</li>
           <li><strong>Arenalar değişir.</strong> Tarlada çamur yavaşlatır, mutfakta ocak gözleri kızarır ve oklavalar yuvarlanır, pazar yerinde tezgahlar düşman mermilerine siper olur.</li>
           <li><strong>20. dalgada patron.</strong> Kraliçe Zorg, Gözcü Kroz ya da Yumurta Ana'dan biri gelir. Zaferden sonra istersen sonsuz moda devam edebilirsin.</li>

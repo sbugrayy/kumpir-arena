@@ -76,10 +76,46 @@
     return o;
   }
 
+  // Akıllı dükkan: katalizörler 19 sıradan eşyadan biri olduğu için oyun ortasında neredeyse hiç
+  // görünmüyordu. Evrim silahlarından birine (ya da ikisine) sahip oyuncuya eksik katalizörü öner.
+  const CATALYST_CHANCE = { 1: 0.25, 2: 0.7 };
+
+  function wantedCatalyst(r) {
+    if (D.CHAR_BY_ID[r.charId].noWeapons) return null;
+    let bestN = 0;
+    let cands = [];
+    D.EVOLUTIONS.forEach((ev) => {
+      const item = D.ITEM_BY_ID[ev.item];
+      if ((r.items[ev.item] || 0) > 0 || !itemAllowed(r, item)) return;
+      const n = (r.weapons.some((w) => w.id === ev.a) ? 1 : 0) + (r.weapons.some((w) => w.id === ev.b) ? 1 : 0);
+      if (!n || n < bestN) return;
+      if (n > bestN) {
+        bestN = n;
+        cands = [];
+      }
+      cands.push(ev.item);
+    });
+    return cands.length ? { id: S.pick(cands), n: bestN } : null;
+  }
+  G.wantedCatalyst = wantedCatalyst;
+
+  function offerCatalyst(r) {
+    const want = wantedCatalyst(r);
+    if (!want || r.shop.some((o) => o && o.kind === 'item' && o.id === want.id)) return;
+    if (G.srand() >= CATALYST_CHANCE[want.n]) return;
+    // kilitli olmayan bir teklifin yerine koy; önce eşya tekliflerinden birini seç
+    const free = r.shop.map((o, i) => (o && !o.locked ? i : -1)).filter((i) => i >= 0);
+    if (!free.length) return;
+    const items = free.filter((i) => r.shop[i].kind === 'item');
+    const idx = S.pick(items.length ? items : free);
+    r.shop[idx] = { kind: 'item', id: want.id, tier: D.ITEM_BY_ID[want.id].tier, locked: false };
+  }
+
   function fillShop(r) {
     for (let i = 0; i < 4; i++) {
       if (!r.shop[i]) r.shop[i] = genOffer(r, r.shop);
     }
+    offerCatalyst(r);
   }
 
   G.enterShop = function () {
@@ -223,14 +259,18 @@
   };
 
   /* ================= Silah evrimi ================= */
+  // Her tarif için durum: tierA/tierB sendeki en yüksek kademe (0 = yok); have* şart sağlandı mı
   G.evoStatus = function () {
     const r = run();
     if (D.CHAR_BY_ID[r.charId].noWeapons) return [];
+    const best = (id) => r.weapons.reduce((m, w) => (w.id === id ? Math.max(m, w.tier) : m), 0);
     return D.EVOLUTIONS.map((ev) => {
-      const haveA = r.weapons.some((w) => w.id === ev.a);
-      const haveB = r.weapons.some((w) => w.id === ev.b);
+      const tierA = best(ev.a);
+      const tierB = best(ev.b);
+      const haveA = tierA >= D.EVO_MIN_TIER;
+      const haveB = tierB >= D.EVO_MIN_TIER;
       const haveItem = (r.items[ev.item] || 0) > 0;
-      return { id: ev.id, ev, haveA, haveB, haveItem, ready: haveA && haveB && haveItem };
+      return { id: ev.id, ev, tierA, tierB, haveA, haveB, haveItem, ready: haveA && haveB && haveItem };
     });
   };
 

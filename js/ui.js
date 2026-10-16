@@ -1067,6 +1067,7 @@
       if (UI.current === 'levelup' && /^Digit[1-4]$/.test(e.code) && $('modal').hidden && UI.chooseUpgrade) {
         UI.chooseUpgrade(Number(e.code.slice(5)) - 1);
       }
+      if (UI.current === 'stand' && $('modal').hidden && UI.standKey && UI.standKey(e)) e.preventDefault();
     });
 
     const unlock = () => {
